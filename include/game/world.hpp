@@ -16,67 +16,26 @@ namespace Game
 		size_t Ny, 
 		size_t Nz, 
 		bool WrapAround = false, 
-		float CubeSideLength = 1.f, 
-		size_t ThreadCount = 16
+		float CubeSideLength = 1.f
 	>
 	struct World
 	{
 		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
-		using Transforms = std::array<::Matrix, Nx * Ny * Nz>;
-	protected:
-		Cube* grid_read;
-		Cube* grid_write;
-		Transforms* transforms_memory;
-	public:
-		World() :
-				grid_read(new Cube), 
-				grid_write(new Cube),
-				transforms_memory(new Transforms),
-				transforms(*transforms_memory), 
-				cube(GenMeshCube(CubeSideLength, CubeSideLength, CubeSideLength)), 
-				shader(LoadShader(
-						TextFormat("resources/shaders/glsl%i/lighting_instancing.vs", GLSL_VERSION),
-						TextFormat("resources/shaders/glsl%i/lighting.fs", GLSL_VERSION)
-				)), 
-				ambient_location(GetShaderLocation(shader, "ambient")), 
-				grid_default_material(LoadMaterialDefault())
+		World() : grid_read(new Cube), grid_write(new Cube)
 		{
-			CreateLight(LIGHT_DIRECTIONAL, ::Vector3 { 50.0f, 50.0f, 0.0f }, ::Vector3{ 0.f, 0.f, 0.0f }, WHITE, shader);
-			shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(shader, "mvp");
-			shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
-			shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocationAttrib(shader, "instanceTransform");
-			set_ambient_light(.2f, .2f, .2f);
-			TraceLog(LOG_INFO, "Setting Grid Transforms...");
-			loop3d_transforms(
-				[this](Matrix& transform, size_t x, size_t y, size_t z)
-				{
-					const Matrix translation = MatrixTranslate(
-						static_cast<float>(x),
-						static_cast<float>(z), 
-						static_cast<float>(y)
-					);
-					const Vector3 axis = Vector3Normalize(::Vector3{ 0.f, 0.f, 0.f });
-					const float angle = 0.f * DEG2RAD;
-					const Matrix rotation = MatrixRotate(axis, angle);
-					transform = MatrixMultiply(rotation, translation);
-					grid_read->at(from_index3(x, y, z)) = 0.f;
-					grid_write->at(from_index3(x, y, z)) = 0.f;
-				}
-			);
-			TraceLog(LOG_INFO, "... Done Setting Grid Transforms");
-			grid_default_material.shader = shader;
-			grid_default_material.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
+			loop3d([](auto, auto, auto& cell_out, size_t, size_t, size_t) {
+					cell_out = 0;
+				});
+			commit();
+			loop3d([](auto, auto, auto& cell_out, size_t, size_t, size_t) {
+				cell_out = 0;
+			});
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
-		~World() { delete grid_read; delete grid_write; delete transforms_memory; UnloadMesh(cube); }
+		~World() { delete grid_read; delete grid_write; }
 		World& operator=(const World& other) = delete;
 		World& operator=(World&& other) = default;
-
-		void set_ambient_light(float r, float g, float b) {
-			float color[4] = { r, g, b, 1.0f };
-			SetShaderValue(shader, ambient_location, color, SHADER_UNIFORM_VEC4);
-		}
 
 		#define GAME_WORLD_HPP_HEADER_MINUS_DIM(DIM) \
 			auto minus_##DIM (size_t DIM ) const \
@@ -145,17 +104,6 @@ namespace Game
 			return neighbor_sum(index3.x, index3.y, index3.z);
 		}
 
-		auto loop3d_transforms(auto visitor)
-		{
-			for (size_t ix = 0; ix < Nx; ++ix)
-			{
-				for (size_t iy = 0; iy < Ny; ++iy)
-				{
-					for (size_t iz = 0; iz < Nz; ++iz)
-						visitor(transforms[from_index3(ix, iy, iz)], ix, iy, iz);
-				}
-			}
-		}
 		auto loop3d_read(auto visitor) const
 		{
 			for (size_t ix = 0; ix < Nx; ++ix)
@@ -196,31 +144,27 @@ namespace Game
 
 		void draw(::Vector3 camera_position, auto& colors) const
 		{
-			loop3d_read([&colors](const auto, const auto& cell, size_t x, size_t y, size_t z) {
-				if (cell != 0) {
-					DrawCube(::Vector3{ (float)x , (float)z, (float)y}, 1.f, 1.f, 1.f, colors.at(cell));
+			loop3d_read([&colors](const auto, const auto& cell, size_t x, size_t y, size_t z)
+			{
+				if (cell > 0)
+				{
+					DrawCube(
+						::Vector3{ 
+							static_cast<float>(x), 
+							static_cast<float>(z), 
+							static_cast<float>(y)
+						},
+						CubeSideLength, 
+						CubeSideLength, 
+						CubeSideLength,
+						colors.at(cell)
+					);
 				}
-				});
-			//auto camera_position_array = std::array{ camera_position.x, camera_position.y, camera_position.z };
-			//rlEnableShader(shader.id);
-			//int cell_value_location = rlGetLocationAttrib(shader.id, "vertexCellValue");
-			//rlEnableVertexAttribute(cell_value_location);
-			//rlSetVertexAttribute(cell_value_location, 1, RL_FLOAT, false, 0, 0);
-			//std::cout << "cell " << grid_read->data()[from_index3(16/ 2 + 1, 16/ 2 + 1, 0)] << "\n";
-			//std::cout << "cell " << grid_read->data()[from_index3(16/ 2, 16/ 2 + 1, 0)] << "\n";
-			//int vboCellId = rlLoadVertexBuffer(grid_read->data(), Nx * Ny * Nz, true);
-			//rlEnableVertexBuffer(vboCellId);
-			//SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], camera_position_array.data(), SHADER_UNIFORM_VEC3);
-			//DrawMeshInstanced(cube, grid_default_material, transforms.data(), transforms.size());
-			//rlUnloadVertexBuffer(vboCellId);
+			});
 		}
 	protected:
-		Transforms& transforms; // WAY too much memory to allocate on the stack //
-		const ::Mesh cube;
-		::Shader shader;
-		int ambient_location;
-		::Material grid_default_material; // TODO: Modify shader to accept cell values and color uniform //
-
+		Cube* grid_read;
+		Cube* grid_write;
 	};
 
 	using DefaultCellType = uint8_t;
