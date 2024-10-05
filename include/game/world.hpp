@@ -5,6 +5,7 @@
 #define GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
 namespace Game
 {
+	using ColorType = decltype(RAYWHITE);
 	struct Index3 {
 		size_t x, y, z;
 	};
@@ -22,7 +23,7 @@ namespace Game
 
 	template<
 		typename Cell_T, 
-		size_t Nx,
+		size_t Nx, 
 		size_t Ny
 	>
 	struct CellImageBuffer2D
@@ -251,6 +252,15 @@ namespace Game
 
 	using DefaultCellType = uint8_t;
 	using GameWorld = World<DefaultCellType, 256, 256, 10>;
+
+	inline const auto default_cell_colors = std::array{
+		RAYWHITE, 
+		BLUE,
+		RED,
+		GREEN,
+		PURPLE,
+		ORANGE
+	};
 
 
 }
