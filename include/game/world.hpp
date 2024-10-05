@@ -31,34 +31,40 @@ namespace Game
 		ColorsType cell_colors;
 		static const auto cell_null = Cell_T{ 0 };
 		const ::Color cell_null_color;
-		size_t pixel_data_size;
 		
 		CellImageBuffer2D(ColorsType cell_colors_ = default_cell_colors)
 			: cell_colors(cell_colors_), cell_null_color(cell_colors[cell_null]) {
-			Image buffer_ = GenImageColor(Nx, Ny, cell_null_color);
-			pixel_data_size = GetPixelDataSize(1, 1, buffer_.format);
-			buffer = LoadTextureFromImage(buffer_);
+			buffer = GenImageColor(Nx, Ny, cell_null_color);
+			texture = LoadTextureFromImage(buffer);
 		}
 		
 		~CellImageBuffer2D() {
-			UnloadTexture(buffer);
+			UnloadImage(buffer);
+			UnloadTexture(texture);
 		}
 
 		inline void write(const size_t x, const size_t y, const Cell_T cell_value)
 		{
-			static int pixel = 0;
-			SetPixelColor(&pixel, cell_colors[cell_value], buffer.format);
-			UpdateTextureRec(buffer, Rectangle{ static_cast<float>(x), static_cast<float>(y), 1, 1 }, &pixel);
-			//SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
+			//static int pixel = 0;
+			//SetPixelColor(&pixel, cell_colors[cell_value], buffer.format);
+			//UpdateTextureRec(buffer, Rectangle{ static_cast<float>(x), static_cast<float>(y), 1, 1 }, &pixel);
+			SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
+		}
+		void update() {
+			UpdateTexture(texture, buffer.data);
 		}
 		//inline ::Color read(const size_t x, const size_t y) {
 		//	return GetImageColor(buffer, x, y);
 		//}
-		const Texture& get_buffer() const {
+		const Texture2D& get_texture() const {
+			return texture;
+		}
+		const Image& get_buffer() const {
 			return buffer;
 		}
 	protected: 
-		Texture buffer;
+		Image buffer;
+		Texture2D texture;
 	};
 
 	template<
@@ -104,6 +110,7 @@ namespace Game
 			for (auto& buffer : cell_image_buffers_2d) buffer.cell_colors = colors;
 			plane_mesh = GenMeshCube(Nx, 1.f, Ny);
 			plane = LoadModelFromMesh(plane_mesh);
+			xz_texture = LoadTextureFromImage(cell_image_buffers_2d[0].get_buffer());
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
@@ -224,15 +231,28 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw_2d_in_3d(::Vector3 center, float scale_factor = 1.f)
+		void draw_2d_in_3d(::Vector3 center, float scale_factor = 1.f) const
+		{
+			/*	center.x = -scale_factor * Nx;
+				center.y = -scale_factor * Nz;
+				center.z = -scale_factor * Ny;*/
+			loop3d_read([this, center, scale_factor](const auto, const auto& cell, size_t x, size_t y, size_t z)
+				{
+					plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cell_image_buffers_2d[z].get_texture();
+					DrawModel(plane, center, scale_factor, RAYWHITE);
+				}
+			);
+		}
+
+		void draw_update_2d_in_3d(::Vector3 center, float scale_factor = 1.f)
 		{
 		/*	center.x = -scale_factor * Nx;
 			center.y = -scale_factor * Nz;
 			center.z = -scale_factor * Ny;*/
 			loop3d_read([this, center, scale_factor](const auto, const auto& cell, size_t x, size_t y, size_t z)
 				{
-					//UpdateTexture(xz_texture, cell_image_buffers_2d[0].get_buffer().data);
-					plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cell_image_buffers_2d[0].get_buffer();
+					cell_image_buffers_2d[z].update();
+					plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cell_image_buffers_2d[z].get_texture();
 					DrawModel(plane, center, scale_factor, RAYWHITE);
 ;				}
 			);
@@ -276,7 +296,7 @@ namespace Game
 		CellImageBuffers2DType cell_image_buffers_2d;
 		Mesh plane_mesh;
 		Model plane;
-
+		Texture xz_texture;
 	};
 
 	using DefaultCellType = uint8_t;

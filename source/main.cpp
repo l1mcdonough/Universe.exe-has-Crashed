@@ -40,11 +40,17 @@ int main(int argc, char** args)
 //        //    grid[clickedRow][clickedColumn] = 255;
 //        //}
 
+        ++frame;
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
-                    world.draw_2d_in_3d(::Vector3{0.f, 0.f, 0.f});
-                DrawGrid(100, 1.0f);
+                    if (pause_sim == false)
+                        world.draw_2d_in_3d(::Vector3{0.f, 0.f, 0.f});
+                    else if (frame % grid_update_period == 0)
+                        world.draw_update_2d_in_3d(::Vector3{ 0.f, 0.f, 0.f });
+                    else
+                        world.draw_2d_in_3d(::Vector3{ 0.f, 0.f, 0.f });
+                    DrawGrid(100, 1.0f);
             EndMode3D();
             DrawFPS(10, 10);
             pause_display(pause_sim, screen_height);
@@ -53,7 +59,6 @@ int main(int argc, char** args)
             pause_sim = !pause_sim;
         if (pause_sim == false)
         {
-            ++frame;
             if (frame % grid_update_period == 0)
             {
                 frame = 0;
