@@ -1,76 +1,48 @@
-#include "raylib.h"
+#include <game/world.hpp>
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-int main(void)
+int main(int argc, char** args)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 1300;
-    const int screenHeight = 1300;
+    const int screen_width = 1280;
+    const int screen_height = 768;
 
-    InitWindow(screenWidth, screenHeight, "raylib [shapes] example - basic shapes drawing");
-
-    float rotation = 0.0f;
-
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    int rectSize = 5;
-    int grid[256][256] = { 0 };
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
+    InitWindow(screen_width, screen_height, "Game");
+    SetTargetFPS(60);
+//
+    Camera camera = { 0 };
+    camera.position = Vector3{ 10.f, 10.0f, 0.f }; // Camera position
+    camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
+    camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
+    camera.fovy = 45.0f; // Camera field-of-view Y
+    camera.projection = CAMERA_PERSPECTIVE;// CAMERA_ORTHOGRAPHIC; // Camera projection type
+    Game::GameWorld world;
+    for(size_t ii = 256 / 2; ii < 256/2 + 10; ++ii)
+        world.mutable_at(ii, ii, 0);
+    world.commit();
+    while (!WindowShouldClose())
     {
-        Vector2 mousePosition = GetMousePosition();
-
-        // Check if the left mouse button is clicked
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            // Calculate the column and row of the rectangle clicked
-            int clickedColumn = mousePosition.x / rectSize;
-            int clickedRow = mousePosition.y / rectSize;
-            grid[clickedRow][clickedColumn] = 255;
-        }
+        Vector2 mouse_position = GetMousePosition();
+//        std::cout << camera.up.x << ", "
+//            << camera.up.y << ", "
+//            << camera.up.z << "\n";
+//            //// Check if the left mouse button is clicked
+//        //if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+//        //    // Calculate the column and row of the rectangle clicked
+//        //    int clickedColumn = mousePosition.x / rectSize;
+//        //    int clickedRow = mousePosition.y / rectSize;
+//        //    grid[clickedRow][clickedColumn] = 255;
+//        //}
+        UpdateCamera(&camera, CAMERA_FREE);
+        DisableCursor();
         BeginDrawing();
-
-        ClearBackground(RAYWHITE);
-
-        DrawText("some basic shapes available on raylib", 20, 20, 20, DARKGRAY);
-
-
-        // Rectangle shapes and lines
-        for (int y = 0; y < 256; y++) {
-            for (int x = 0; x < 256; x++) {
-                int greenValue = grid[y][x];
-                Color rectColor = { 0, greenValue, 0, 255 };
-                DrawRectangle(x * rectSize, y * rectSize, rectSize, rectSize, rectColor);
-            }
-        }
-        
+            ClearBackground(RAYWHITE);
+            BeginMode3D(camera);
+                    world.draw(camera.position);
+                DrawGrid(100, 1.0f);
+            EndMode3D();
+            DrawFPS(10, 10);
         EndDrawing();
-        //----------------------------------------------------------------------------------
     }
-
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
-
+    // Cleanup //
+    CloseWindow();
     return 0;
-}
-
-int getAdjacentLifeTotal(int grid[256][256], int x, int y) {
-    int x1 = x - 1;
-    if (x1 < 0)
-        x1 = 0;
-    int y1 = y - 1;
-    if (y1 < 0)
-        y1 = 0;
-    int x2 = x + 2;
-    if (x2 > 256)
-        x2 = 256;
-    int y2 = y + 2;
-    if (y2 > 256)
-        y2 = 256;
-
 }
