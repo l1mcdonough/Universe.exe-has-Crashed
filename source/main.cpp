@@ -1,89 +1,87 @@
-/*******************************************************************************************
-*
-*   raylib [shapes] example - Draw basic shapes 2d (rectangle, circle, line...)
-*
-*   Example originally created with raylib 1.0, last time updated with raylib 4.2
-*
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2014-2024 Ramon Santamaria (@raysan5)
-*
-********************************************************************************************/
+#include <game/world.hpp>
 
-#include "raylib.h"
+void orbital_camera(Camera& camera, const float camera_orbit_speed);
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-int main(void)
+int main(int argc, char** args)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 1300;
-    const int screenHeight = 1300;
+    const int screen_width = 1280;
+    const int screen_height = 768;
 
-    InitWindow(screenWidth, screenHeight, "raylib [shapes] example - basic shapes drawing");
-
-    float rotation = 0.0f;
-
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    int rectSize = 5;
-    int grid[256][256] = { 0 };
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
+    InitWindow(screen_width, screen_height, "Game");
+    SetTargetFPS(60);
+//
+    Camera camera = { 0 };
+    camera.position = Vector3{ .1f, 200.0f, 0.f }; // Camera position
+    camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
+    camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
+    camera.fovy = 180.0f; // Camera field-of-view Y
+    camera.projection = CAMERA_ORTHOGRAPHIC; // Camera projection type
+    Game::GameWorld world;
+    for(size_t ii = 0; ii < 2000; ++ii)
+        world.mutable_at(GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1.f;
+        for (size_t foodX = 50; foodX > 53; foodX++) {
+            world.mutable_at(foodX, 50, 0) = 1.f;
+        }
+    //world.mutable_at(49, 50, 0) = 2;
+    world.commit();
+    size_t grid_update_period = 6;
+    size_t frame = 0;
+    const float camera_orbit_speed = .1f;
+    DisableCursor();
+    while (!WindowShouldClose())
     {
-        Vector2 mousePosition = GetMousePosition();
+        orbital_camera(camera, camera_orbit_speed);
+        Vector2 mouse_position = GetMousePosition();
+//        std::cout << camera.up.x << ", "
+//            << camera.up.y << ", "
+//            << camera.up.z << "\n";
+//            //// Check if the left mouse button is clicked
+//        //if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+//        //    // Calculate the column and row of the rectangle clicked
+//        //    int clickedColumn = mousePosition.x / rectSize;
+//        //    int clickedRow = mousePosition.y / rectSize;
+//        //    grid[clickedRow][clickedColumn] = 255;
+//        //}
 
-        // Check if the left mouse button is clicked
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            // Calculate the column and row of the rectangle clicked
-            int clickedColumn = mousePosition.x / rectSize;
-            int clickedRow = mousePosition.y / rectSize;
-            grid[clickedRow][clickedColumn] = 255;
-        }
         BeginDrawing();
-
-        ClearBackground(RAYWHITE);
-
-        DrawText("some basic shapes available on raylib", 20, 20, 20, DARKGRAY);
-
-
-        // Rectangle shapes and lines
-        for (int y = 0; y < 256; y++) {
-            for (int x = 0; x < 256; x++) {
-                int greenValue = grid[y][x];
-                Color rectColor = { 0, greenValue, 0, 255 };
-                DrawRectangle(x * rectSize, y * rectSize, rectSize, rectSize, rectColor);
-            }
-        }
-        
+            ClearBackground(RAYWHITE);
+            BeginMode3D(camera);
+                    world.draw(::Vector3{0,0,0}, Game::default_cell_colors);
+                DrawGrid(100, 1.0f);
+            EndMode3D();
+            DrawFPS(10, 10);
         EndDrawing();
-        //----------------------------------------------------------------------------------
+        ++frame;
+        if (frame % grid_update_period == 0)
+        {
+            frame = 0;
+            world.conway();
+            world.commit();
+        }
     }
-
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
-
+    // Cleanup //
+    CloseWindow();
     return 0;
 }
-
-int getAdjacentLifeTotal(int grid[256][256], int x, int y) {
-    int x1 = x - 1;
-    if (x1 < 0)
-        x1 = 0;
-    int y1 = y - 1;
-    if (y1 < 0)
-        y1 = 0;
-    int x2 = x + 2;
-    if (x2 > 256)
-        x2 = 256;
-    int y2 = y + 2;
-    if (y2 > 256)
-        y2 = 256;
-
+void orbital_camera(Camera& camera, const float camera_orbit_speed)
+{
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) == true)
+    {
+        ::Vector2 orbit_vector = Vector2Normalize(GetMouseDelta());
+        orbit_vector.x *= camera_orbit_speed;
+        orbit_vector.y *= camera_orbit_speed;
+        Matrix yaw = MatrixRotate(GetCameraUp(&camera), orbit_vector.x);
+        Matrix pitch = MatrixRotate(GetCameraRight(&camera), orbit_vector.y);
+        Vector3 view = Vector3Subtract(camera.position, camera.target);
+        view = Vector3Transform(view, yaw);
+        camera.position = Vector3Add(camera.target, view);
+        view = Vector3Transform(view, pitch);
+        camera.position = Vector3Add(camera.target, view);
+    }
+    float zoom = GetMouseWheelMove();
+    ::Vector3 camera_forward = GetCameraForward(&camera);
+    camera_forward.x *= zoom;
+    camera_forward.y *= zoom;
+    camera_forward.z *= zoom;
+    camera.position = Vector3Add(camera.position, camera_forward);
 }
