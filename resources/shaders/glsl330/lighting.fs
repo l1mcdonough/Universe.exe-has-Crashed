@@ -5,7 +5,7 @@ in vec3 fragPosition;
 in vec2 fragTexCoord;
 //in vec4 fragColor;
 in vec3 fragNormal;
-in ubyte cellValue;
+in float cellValue;
 
 // Input uniform values
 uniform sampler2D texture0;
@@ -35,7 +35,7 @@ uniform vec3 viewPos;
 
 void main()
 {
-    // Texel color fetching from texture sampler
+   /* // Texel color fetching from texture sampler
     vec4 texelColor = texture(texture0, fragTexCoord);
     vec3 lightDot = vec3(0.0);
     vec3 normal = normalize(fragNormal);
@@ -71,7 +71,10 @@ void main()
 
     finalColor = (texelColor*((colDiffuse + vec4(specular, 1.0))*vec4(lightDot, 1.0)));
     finalColor += texelColor*(ambient/10.0)*colDiffuse;
-
+*/
     // Gamma correction
-    finalColor = pow(finalColor, vec4(1.0/2.2));
+	if(cellValue != 0)
+		finalColor =vec4(0.0, 0.0, 1.0, 1.0);// pow(finalColor, vec4(1.0/2.2));
+	else
+		finalColor = vec4(1.0, 0.0, 0.0, 1.0);//vec4(finalColor.x, finalColor.y, finalColor.z, 0.0);
 }
