@@ -20,26 +20,30 @@ int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    const int screenWidth = 1300;
+    const int screenHeight = 1300;
 
     InitWindow(screenWidth, screenHeight, "raylib [shapes] example - basic shapes drawing");
 
     float rotation = 0.0f;
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
+    int rectSize = 5;
+    int grid[256][256] = { 0 };
     //--------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
-        //----------------------------------------------------------------------------------
-        rotation += 0.2f;
-        //----------------------------------------------------------------------------------
+        Vector2 mousePosition = GetMousePosition();
 
-        // Draw
-        //----------------------------------------------------------------------------------
+        // Check if the left mouse button is clicked
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            // Calculate the column and row of the rectangle clicked
+            int clickedColumn = mousePosition.x / rectSize;
+            int clickedRow = mousePosition.y / rectSize;
+            grid[clickedRow][clickedColumn] = 255;
+        }
         BeginDrawing();
 
         ClearBackground(RAYWHITE);
@@ -48,9 +52,11 @@ int main(void)
 
 
         // Rectangle shapes and lines
-        for (int y = 0; y < 5; y++) {
-            for (int x = 0; x < 5; x++) {
-                DrawRectangle(screenWidth / 4 * 2 - 60, 100, 120, 60, RED);
+        for (int y = 0; y < 256; y++) {
+            for (int x = 0; x < 256; x++) {
+                int greenValue = grid[y][x];
+                Color rectColor = { 0, greenValue, 0, 255 };
+                DrawRectangle(x * rectSize, y * rectSize, rectSize, rectSize, rectColor);
             }
         }
         
@@ -64,4 +70,20 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     return 0;
+}
+
+int getAdjacentLifeTotal(int grid[256][256], int x, int y) {
+    int x1 = x - 1;
+    if (x1 < 0)
+        x1 = 0;
+    int y1 = y - 1;
+    if (y1 < 0)
+        y1 = 0;
+    int x2 = x + 2;
+    if (x2 > 256)
+        x2 = 256;
+    int y2 = y + 2;
+    if (y2 > 256)
+        y2 = 256;
+
 }
