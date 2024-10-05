@@ -15,9 +15,11 @@ int main(int argc, char** args)
     camera.fovy = 45.0f; // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;// CAMERA_ORTHOGRAPHIC; // Camera projection type
     Game::GameWorld world;
-    for(size_t ii = 256 / 2; ii < 256/2 + 10; ++ii)
-        world.mutable_at(ii, ii, 0);
+    for(size_t ii = 0; ii < 2000; ++ii)
+        world.mutable_at(GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1.f;
     world.commit();
+    std::cout << " CELL " << world.read_at(16 / 2, 16 / 2, 0) << "\n";
+    std::cout << " CELL " << world.read_at(16 / 2+1, 16 / 2+1, 0) << "\n";
     while (!WindowShouldClose())
     {
         Vector2 mouse_position = GetMousePosition();
@@ -36,7 +38,7 @@ int main(int argc, char** args)
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
-                    world.draw(camera.position);
+                    world.draw(camera.position, Game::default_cell_colors);
                 DrawGrid(100, 1.0f);
             EndMode3D();
             DrawFPS(10, 10);

@@ -48,7 +48,7 @@ namespace Game
 			set_ambient_light(.2f, .2f, .2f);
 			TraceLog(LOG_INFO, "Setting Grid Transforms...");
 			loop3d_transforms(
-				[](Matrix& transform, size_t x, size_t y, size_t z)
+				[this](Matrix& transform, size_t x, size_t y, size_t z)
 				{
 					const Matrix translation = MatrixTranslate(
 						static_cast<float>(x),
@@ -59,6 +59,8 @@ namespace Game
 					const float angle = 0.f * DEG2RAD;
 					const Matrix rotation = MatrixRotate(axis, angle);
 					transform = MatrixMultiply(rotation, translation);
+					grid_read->at(from_index3(x, y, z)) = 0.f;
+					grid_write->at(from_index3(x, y, z)) = 0.f;
 				}
 			);
 			TraceLog(LOG_INFO, "... Done Setting Grid Transforms");
@@ -154,7 +156,17 @@ namespace Game
 				}
 			}
 		}
+		auto loop3d_read(auto visitor) const
+		{
+			for (size_t ix = 0; ix < Nx; ++ix)
+			{
+				for (size_t iy = 0; iy < Ny; ++iy) {
+					for (size_t iz = 0; iz < Nz; ++iz)
+						visitor(grid_read, read_at(ix, iy, iz), ix, iy, iz);
+				}
+			}
 
+		}
 		auto loop3d(auto visitor)
 		{
 			for (size_t ix = 0; ix < Nx; ++ix)
@@ -182,11 +194,25 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw(::Vector3 camera_position) const
+		void draw(::Vector3 camera_position, auto& colors) const
 		{
-			auto camera_position_array = std::array{ camera_position.x, camera_position.y, camera_position.z };
-			SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], camera_position_array.data(), SHADER_UNIFORM_VEC3);
-			DrawMeshInstanced(cube, grid_default_material, transforms.data(), transforms.size());
+			loop3d_read([&colors](const auto, const auto& cell, size_t x, size_t y, size_t z) {
+				if (cell != 0) {
+					DrawCube(::Vector3{ (float)x , (float)z, (float)y}, 1.f, 1.f, 1.f, colors.at(cell));
+				}
+				});
+			//auto camera_position_array = std::array{ camera_position.x, camera_position.y, camera_position.z };
+			//rlEnableShader(shader.id);
+			//int cell_value_location = rlGetLocationAttrib(shader.id, "vertexCellValue");
+			//rlEnableVertexAttribute(cell_value_location);
+			//rlSetVertexAttribute(cell_value_location, 1, RL_FLOAT, false, 0, 0);
+			//std::cout << "cell " << grid_read->data()[from_index3(16/ 2 + 1, 16/ 2 + 1, 0)] << "\n";
+			//std::cout << "cell " << grid_read->data()[from_index3(16/ 2, 16/ 2 + 1, 0)] << "\n";
+			//int vboCellId = rlLoadVertexBuffer(grid_read->data(), Nx * Ny * Nz, true);
+			//rlEnableVertexBuffer(vboCellId);
+			//SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], camera_position_array.data(), SHADER_UNIFORM_VEC3);
+			//DrawMeshInstanced(cube, grid_default_material, transforms.data(), transforms.size());
+			//rlUnloadVertexBuffer(vboCellId);
 		}
 	protected:
 		Transforms& transforms; // WAY too much memory to allocate on the stack //
@@ -198,7 +224,7 @@ namespace Game
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 256, 256, 1>;
+	using GameWorld = World<DefaultCellType, 256, 256, 16>;
 
 	inline const auto default_cell_colors = std::map<int, ColorType>{
 		{1, BLUE},
