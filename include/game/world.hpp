@@ -31,25 +31,34 @@ namespace Game
 		ColorsType cell_colors;
 		static const auto cell_null = Cell_T{ 0 };
 		const ::Color cell_null_color;
+		size_t pixel_data_size;
 		
 		CellImageBuffer2D(ColorsType cell_colors_ = default_cell_colors)
 			: cell_colors(cell_colors_), cell_null_color(cell_colors[cell_null]) {
-			buffer = GenImageColor(Nx, Ny, cell_null_color);
+			Image buffer_ = GenImageColor(Nx, Ny, cell_null_color);
+			pixel_data_size = GetPixelDataSize(1, 1, buffer_.format);
+			buffer = LoadTextureFromImage(buffer_);
 		}
 		
 		~CellImageBuffer2D() {
-			UnloadImage(buffer);
+			UnloadTexture(buffer);
 		}
 
-		inline void write(const size_t x, const size_t y, const Cell_T cell_value) {
-			SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
+		inline void write(const size_t x, const size_t y, const Cell_T cell_value)
+		{
+			static int pixel = 0;
+			SetPixelColor(&pixel, cell_colors[cell_value], buffer.format);
+			UpdateTextureRec(buffer, Rectangle{ static_cast<float>(x), static_cast<float>(y), 1, 1 }, &pixel);
+			//SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
 		}
-		inline ::Color read(const size_t x, const size_t y) {
-			return GetImageColor(buffer, x, y);
+		//inline ::Color read(const size_t x, const size_t y) {
+		//	return GetImageColor(buffer, x, y);
+		//}
+		const Texture& get_buffer() const {
+			return buffer;
 		}
-
 	protected: 
-		Image buffer;
+		Texture buffer;
 	};
 
 	template<
@@ -93,13 +102,17 @@ namespace Game
 				cell_out = 0;
 			});
 			for (auto& buffer : cell_image_buffers_2d) buffer.cell_colors = colors;
+			plane_mesh = GenMeshCube(Nx, 1.f, Ny);
+			plane = LoadModelFromMesh(plane_mesh);
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
-		~World() { delete grid_read; delete grid_write; }
+		~World() { delete grid_read; delete grid_write; UnloadModel(plane); }
 		World& operator=(const World& other) = delete;
 		World& operator=(World&& other) = default;
-
+		constexpr inline const Index3 dimensions() const {
+			return Index3{ Nx, Ny, Nz };
+		}
 		#define GAME_WORLD_HPP_HEADER_MINUS_DIM(DIM) \
 			auto minus_##DIM (size_t DIM ) const \
 			{ \
@@ -211,8 +224,18 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw_2d_in_3d()
+		void draw_2d_in_3d(::Vector3 center, float scale_factor = 1.f)
 		{
+		/*	center.x = -scale_factor * Nx;
+			center.y = -scale_factor * Nz;
+			center.z = -scale_factor * Ny;*/
+			loop3d_read([this, center, scale_factor](const auto, const auto& cell, size_t x, size_t y, size_t z)
+				{
+					//UpdateTexture(xz_texture, cell_image_buffers_2d[0].get_buffer().data);
+					plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cell_image_buffers_2d[0].get_buffer();
+					DrawModel(plane, center, scale_factor, RAYWHITE);
+;				}
+			);
 		}
 
 		void draw_3d(::Vector3 center) const
@@ -238,30 +261,25 @@ namespace Game
 
 		void conway()
 		{
-			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z) {
-				const size_t sum = neighbor_sum(x, y, z) - cell_in;
-				static uint8_t results[9] = { 0, 0, cell_in, 1, 0, 0, 0, 0, 0 };
-				cell_out = results[sum % 9]; // TODO: There is proably a bug here, without modulo it crashes when accessing colors...
-			});
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+				{
+					auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
+					const size_t sum = neighbor_sum(x, y, z) - cell_in;
+					if (sum >= results.size()) cell_out = 0;
+					else cell_out = results[sum];
+				}
+			);
 		}
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
 		CellImageBuffers2DType cell_image_buffers_2d;
+		Mesh plane_mesh;
+		Model plane;
+
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 256, 256, 10>;
-
-	inline const auto default_cell_colors = std::array{
-		RAYWHITE, 
-		BLUE,
-		RED,
-		GREEN,
-		PURPLE,
-		ORANGE
-	};
-
-
+	using GameWorld = World<DefaultCellType, 256, 256, 1>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
