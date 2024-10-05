@@ -13,13 +13,14 @@ int main(int argc, char** args)
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
     camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
     camera.fovy = 45.0f; // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE;// CAMERA_ORTHOGRAPHIC; // Camera projection type
+    camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
     Game::GameWorld world;
     for(size_t ii = 0; ii < 2000; ++ii)
         world.mutable_at(GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1.f;
     world.commit();
-    std::cout << " CELL " << world.read_at(16 / 2, 16 / 2, 0) << "\n";
-    std::cout << " CELL " << world.read_at(16 / 2+1, 16 / 2+1, 0) << "\n";
+    size_t grid_update_period = 6;
+    size_t frame = 0;
+    const float camera_orbit_speed = .1f;
     while (!WindowShouldClose())
     {
         Vector2 mouse_position = GetMousePosition();
@@ -33,7 +34,25 @@ int main(int argc, char** args)
 //        //    int clickedRow = mousePosition.y / rectSize;
 //        //    grid[clickedRow][clickedColumn] = 255;
 //        //}
-        UpdateCamera(&camera, CAMERA_FREE);
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) == true)
+        {
+            ::Vector2 orbit_vector = Vector2Normalize(GetMouseDelta());
+            orbit_vector.x *= camera_orbit_speed;
+            orbit_vector.y *= camera_orbit_speed;
+            Matrix yaw = MatrixRotate(GetCameraUp(&camera), orbit_vector.x);
+            Matrix pitch = MatrixRotate(GetCameraRight(&camera), orbit_vector.y);
+            Vector3 view = Vector3Subtract(camera.position, camera.target);
+            view = Vector3Transform(view, yaw);
+            camera.position = Vector3Add(camera.target, view);
+            view = Vector3Transform(view, pitch);
+            camera.position = Vector3Add(camera.target, view);
+        }
+        float zoom = GetMouseWheelMove();
+        ::Vector3 camera_forward = GetCameraForward(&camera);
+        camera_forward.x *= zoom;
+        camera_forward.y *= zoom;
+        camera_forward.z *= zoom;
+        camera.position = Vector3Add(camera.position, camera_forward);
         DisableCursor();
         BeginDrawing();
             ClearBackground(RAYWHITE);
@@ -43,6 +62,13 @@ int main(int argc, char** args)
             EndMode3D();
             DrawFPS(10, 10);
         EndDrawing();
+        ++frame;
+        if (frame % grid_update_period == 0)
+        {
+            frame = 0;
+            world.conway();
+            world.commit();
+        }
     }
     // Cleanup //
     CloseWindow();

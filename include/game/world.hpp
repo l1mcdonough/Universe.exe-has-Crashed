@@ -142,7 +142,7 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw(::Vector3 camera_position, auto& colors) const
+		void draw(::Vector3 center, auto& colors) const
 		{
 			loop3d_read([&colors](const auto, const auto& cell, size_t x, size_t y, size_t z)
 			{
@@ -150,9 +150,9 @@ namespace Game
 				{
 					DrawCube(
 						::Vector3{ 
-							static_cast<float>(x), 
-							static_cast<float>(z), 
-							static_cast<float>(y)
+							static_cast<float>(x) - Nx / 2, 
+							static_cast<float>(z) - Nz / 2, 
+							static_cast<float>(y) - Ny / 2
 						},
 						CubeSideLength, 
 						CubeSideLength, 
@@ -162,20 +162,30 @@ namespace Game
 				}
 			});
 		}
+
+		void conway()
+		{
+			loop3d([this](auto, auto& cell_in, auto& cell_out, size_t x, size_t y, size_t z) {
+				const size_t sum = neighbor_sum(x, y, z);
+				static uint8_t results[9] = { 0, 0, cell_in, 1, 0, 0, 0, 0, 0 };
+				cell_out = results[sum % 9]; // TODO: There is proably a bug here, without modulo it crashes when accessing colors...
+			});
+		}
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 256, 256, 16>;
+	using GameWorld = World<DefaultCellType, 48, 48, 32>;
 
-	inline const auto default_cell_colors = std::map<int, ColorType>{
-		{1, BLUE},
-		{2, RED},
-		{3, GREEN},
-		{4, PURPLE},
-		{5, ORANGE}
+	inline const auto default_cell_colors = std::array{
+		RAYWHITE, 
+		BLUE,
+		RED,
+		GREEN,
+		PURPLE,
+		ORANGE
 	};
 
 
