@@ -1,16 +1,3 @@
-/*******************************************************************************************
-*
-*   raylib [shapes] example - Draw basic shapes 2d (rectangle, circle, line...)
-*
-*   Example originally created with raylib 1.0, last time updated with raylib 4.2
-*
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2014-2024 Ramon Santamaria (@raysan5)
-*
-********************************************************************************************/
-
 #include "raylib.h"
 
 //------------------------------------------------------------------------------------
@@ -46,7 +33,7 @@ int main(void)
 
         DrawText("some basic shapes available on raylib", 20, 20, 20, DARKGRAY);
 
-        //test
+
         // Rectangle shapes and lines
         for (int y = 0; y < 5; y++) {
             for (int x = 0; x < 5; x++) {
