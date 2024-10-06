@@ -9,7 +9,18 @@ namespace Game
 	enum class Direction {
 		Left, Right, Up, Down, Forward, Backward
 	};
-	using ColorType = decltype(RAYWHITE);
+
+	constexpr const inline uint8_t is_langton_trail = 0b11000000;
+	constexpr const inline uint8_t is_langton_ant = 0b000010000;
+	enum LangtonDirection
+	{
+		LEFT = 0b00000000,
+		RIGHT = 0b00100000,
+		FORWARD = 0b0001000,
+		BACKWARD = 0b0011000,
+	};
+
+	using ColorType = ::Color;
 	struct Index3 {
 		size_t x, y, z;
 		operator Vector3() {
@@ -34,69 +45,6 @@ namespace Game
 	template<
 		typename Cell_T, 
 		size_t Nx, 
-		size_t Ny
-	>
-	struct CellImageBuffer2D
-	{
-		constexpr static const bool has_render_mode = true;
-		ColorsType cell_colors;
-		Mesh plane_mesh;
-		Model plane;
-		static const auto cell_null = Cell_T{ 0 };
-		const ::Color cell_null_color;
-		
-		CellImageBuffer2D(ColorsType cell_colors_ = default_cell_colors)
-			: cell_colors(cell_colors_), cell_null_color(cell_colors[cell_null])
-		{
-			buffer = LoadRenderTexture(Nx, Ny);
-			plane_mesh = GenMeshCube(Nx, 1.f, Ny);
-			plane = LoadModelFromMesh(plane_mesh);
-			plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = buffer.texture;
-		}
-		
-		~CellImageBuffer2D() {
-			UnloadRenderTexture(buffer);
-			UnloadModel(plane);
-		}
-
-		struct RenderMode
-		{
-			constexpr static const bool has_render_mode = false;
-			RenderTexture& buffer;
-			ColorsType& cell_colors;
-			inline RenderMode(RenderTexture& buffer_, ColorsType& cell_colors_) : buffer(buffer_), cell_colors(cell_colors_) {
-				BeginTextureMode(buffer);
-			}
-			inline ~RenderMode() { EndTextureMode(); }
-			inline RenderMode& write(const size_t x, const size_t y, const Cell_T cell_value) {
-				DrawPixel(x, y, cell_colors[cell_value]);
-				return *this;
-			}
-		};
-
-		RenderMode render_mode() {
-			return RenderMode( buffer, cell_colors );
-		}
-
-		inline void write_one(const size_t x, const size_t y, const Cell_T cell_value) {
-			render_mode().write(x, y, cell_value);
-		}
-
-		void draw(::Vector3 center, float scale_factor) const {
-			plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = buffer.texture;
-			DrawModel(plane, center, 1.f, RAYWHITE);
-		}
-
-		const RenderTexture2D& get_buffer() const {
-			return buffer;
-		}
-	protected: 
-		RenderTexture buffer;
-	};
-
-	template<
-		typename Cell_T, 
-		size_t Nx, 
 		size_t Ny, 
 		size_t Nz, 
 		bool WrapAround = false, 
@@ -104,22 +52,13 @@ namespace Game
 	>
 	struct World
 	{
-		using CellImageBuffer2DType = CellImageBuffer2D<Cell_T, Nx, Ny>;
-		using CellImageBuffers2DType = std::array<CellImageBuffer2DType, Nz>;
-		template<typename R>
 		struct Mutable
 		{
 			const size_t x;
 			const size_t y;
 			Cell_T& cell;
-			R& render;
-			inline Mutable& operator=(Cell_T value)
-			{
+			inline Mutable& operator=(Cell_T value) {
 				cell = value;
-				if constexpr (R::has_render_mode == true)
-					render.write_one(x, y, value);
-				else
-					render.write(x, y, value);
 				return *this;
 			}
 			inline operator Cell_T&() {
@@ -138,8 +77,6 @@ namespace Game
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 				cell_out = 0;
 			});
-			for (auto& buffer : cell_image_buffers_2d) buffer.cell_colors = colors;
-			//xz_texture = LoadTextureFromImage(cell_image_buffers_2d[0].get_buffer());
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
@@ -190,27 +127,16 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline auto mutable_at(const Index3 index3) {
-			return grid_write->at(from_index3(index3));
+		inline Mutable mutable_at(const Index3 index3) {
+			return mutable_at(index3.x, index3.y, index3.z);
 		}
 
-		inline auto mutable_at(size_t x, size_t y, size_t z)
-		{
-			return Mutable< CellImageBuffer2DType>{
-				x, 
-				y, 
-				grid_write->at(from_index3(x, y, z)), 
-				cell_image_buffers_2d[z]
-			};
-		}
-
-		inline auto mutable_at(size_t x, size_t y, size_t z, typename CellImageBuffer2DType::RenderMode render_mode)
+		inline Mutable mutable_at(size_t x, size_t y, size_t z)
 		{
 			return Mutable{
-				x,
-				y,
-				grid_write->at(from_index3(x, y, z)),
-				render_mode
+				x, 
+				y, 
+				grid_write->at(from_index3(x, y, z))
 			};
 		}
 
@@ -248,7 +174,7 @@ namespace Game
 		auto jump_3d(auto visitor, size_t steps, Index3 next)
 		{
 			for (size_t ii = 0; ii < steps; ++ii) {
-				next = visitor(grid_read, read_at(next), mutable_at(next), next);
+				next = visitor(read_at(next), mutable_at(next), next);
 			}
 		}
 
@@ -256,7 +182,6 @@ namespace Game
 		{
 			for (size_t iz = 0; iz < Nz; ++iz)
 			{
-				auto render_mode = cell_image_buffers_2d[iz].render_mode();
 				for (size_t ix = 0; ix < Nx; ++ix)
 				{
 					for (size_t iy = 0; iy < Ny; ++iy)
@@ -268,7 +193,7 @@ namespace Game
 						@mutable_at, to be written to
 						@ix, iy, iz, incase the inidicies are nessisary (can be used with from_index if grid is captured)
 						*/
-						visitor(grid_read, read_at(ix, iy, iz), mutable_at(ix, iy, iz, render_mode), ix, iy, iz);
+						visitor(grid_read, read_at(ix, iy, iz), mutable_at(ix, iy, iz), ix, iy, iz);
 					}
 				}
 			}
@@ -281,30 +206,12 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw_2d_in_3d(::Vector3 center, float scale_factor = 1.f) const
-		{
-			/*	center.x = -scale_factor * Nx;
-				center.y = -scale_factor * Nz;
-				center.z = -scale_factor * Ny;*/
-			loop3d_read([this, center, scale_factor](const auto, const auto& cell, size_t x, size_t y, size_t z)
-				{
-					//plane.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cell_image_buffers_2d[z].get_texture();
-					//DrawModel(plane, center, scale_factor, RAYWHITE);
-					cell_image_buffers_2d[z].draw(center, scale_factor);
-				}
-			);
-		}
-
-
 		void draw_3d(::Vector3 center) const
 		{
 			loop3d_read([this, center](const auto, const auto& cell, size_t x, size_t y, size_t z)
 			{
 				if (cell > 0)
 				{
-					auto color = cell;
-					if (x == langton_position.x && y == langton_position.y && z == langton_position.z)
-						color = 4;
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -314,22 +221,44 @@ namespace Game
 						CubeSideLength, 
 						CubeSideLength, 
 						CubeSideLength,
-						colors.at(color)
+						colors.at(cell)
 					);
 				}
 			});
+			DrawCube(
+				::Vector3{
+					static_cast<float>(langton_position.x) - Nx / 2 + center.x,
+					static_cast<float>(langton_position.z) - Nz / 2 + center.z,
+					static_cast<float>(langton_position.y) - Ny / 2 + center.y
+				},
+				CubeSideLength,
+				CubeSideLength,
+				CubeSideLength,
+				PURPLE
+			);
 		}
 
 		template<size_t ValueCount>
-		void copy_read_buffer_values(std::array<Cell_T, ValueCount> values)
+		void copy_mutable_buffer(std::array<Cell_T, ValueCount> values)
 		{
+			commit();
 			for (auto value : values)
 			{
-				loop3d([this, value](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z) {
-						if (cell_in == value)
-							cell_out = cell_in;
-					});
+				for (size_t iz = 0; iz < Nz; ++iz)
+				{
+					for (size_t ix = 0; ix < Nx; ++ix)
+					{
+						for (size_t iy = 0; iy < Ny; ++iy)
+						{
+							if (read_at(ix, iy, iz) == value)
+							{
+								mutable_at(ix, iy, iz) = value;
+							}
+						}
+					}
+				}
 			}
+			commit();
 		}
 
 		void conway()
@@ -346,7 +275,7 @@ namespace Game
 
 		void langton(size_t steps)
 		{
-			jump_3d([this](auto, auto& cell_in, auto cell_out, Index3 current)
+			jump_3d([this](auto& cell_in, Mutable cell_out, Index3 current)
 				{
 					Direction direction = langton_direction;
 					Index3 next = current;
@@ -373,9 +302,9 @@ namespace Game
 						else next.z = minus_z(current.z);
 					}
 					else if (cell_in == 1)
-						cell_out = 3;
+						cell_out = 0;
 					else if (cell_in == 2) {
-						cell_out = 2;
+						cell_out = 0;
 					}
 					else if (cell_in == 0)
 					{
@@ -408,7 +337,7 @@ namespace Game
 					else cell_out = 3;
 					langton_direction = direction;
 					langton_position = next;
-					commit();
+					//std::cout << "Cell in " << cell_in << " Cell out " << cell_out.cell << "\n";
 					return next;
 				}, steps, langton_position
 			);
@@ -419,11 +348,10 @@ namespace Game
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
-		CellImageBuffers2DType cell_image_buffers_2d;
-		Texture xz_texture;
 	};
+	
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 48, 48, 32>;
+	using GameWorld = World<DefaultCellType, 48, 48, 1>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD

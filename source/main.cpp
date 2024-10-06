@@ -21,14 +21,14 @@ int main(int argc, char** args)
     //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
     //for (size_t ii = 0; ii < 2000; ++ii)
         //world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
-    for (size_t ii = 0; ii < 2000; ++ii)
+    for (size_t ii = 0; ii < 1000; ++ii)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
         world.mutable_at(x, y, 0) = 3;
-        world.commit();
-        world.mutable_at(x, y, 0) = 3;
-        world.commit();
+        //world.commit();
+        //world.mutable_at(x, y, 0) = 3;
+        //world.commit();
         world.langton_position = Game::Index3{ x, y, 0};
     }
     world.langton_direction = Game::Direction::Forward;
@@ -71,8 +71,10 @@ int main(int argc, char** args)
                 frame = 0;
                 //world.conway();
                 world.langton(1);
-                std::cout << world.langton_position << "\n";
-                world.commit();
+                world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
+
+                //std::cout << world.langton_position << "\n";
+                //world.commit();
             }
         }
     }
