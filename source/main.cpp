@@ -17,8 +17,11 @@ int main(int argc, char** args)
     camera.fovy = 90.0f; // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
     Game::GameWorld world(Game::default_cell_colors);
+    //for (size_t ii = 0; ii < 20; ++ii)
+    //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
     for (size_t ii = 0; ii < 20; ++ii)
-        world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;//GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1;
+        world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
+
     world.commit();
     size_t grid_update_period = 6;
     size_t frame = 0;
@@ -44,12 +47,7 @@ int main(int argc, char** args)
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
-                    if (pause_sim == false)
-                        world.draw_2d_in_3d(::Vector3{0.f, 0.f, 0.f});
-                    else if (frame % grid_update_period == 0)
-                        world.draw_update_2d_in_3d(::Vector3{ 0.f, 0.f, 0.f });
-                    else
-                        world.draw_2d_in_3d(::Vector3{ 0.f, 0.f, 0.f });
+                    world.draw_2d_in_3d(::Vector3{0.f, 0.f, 0.f});
                     DrawGrid(100, 1.0f);
             EndMode3D();
             DrawFPS(10, 10);
