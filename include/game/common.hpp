@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <optional>
+#include <bitset>
 #include "raylib.h"
 #include <rlgl.h>
 #include <raymath.h>

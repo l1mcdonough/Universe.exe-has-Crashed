@@ -21,22 +21,36 @@ int main(int argc, char** args)
     //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
     //for (size_t ii = 0; ii < 2000; ++ii)
         //world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
-    for (size_t ii = 0; ii < 1000; ++ii)
+    for (size_t ii = 0; ii < 20; ++ii)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
-        world.mutable_at(x, y, 0) = 3;
-        //world.commit();
-        //world.mutable_at(x, y, 0) = 3;
-        //world.commit();
-        world.langton_position = Game::Index3{ x, y, 0};
+        uint8_t direction = GetRandomValue(0, 3) << 3;
+        world.mutable_at(x, y, 0) = (direction | Game::is_langton_trail);
+        //std::cout << (direction | Game::is_langton_trail) << "\n";
+        //std::cout << (((direction | Game::is_langton_trail) & Game::is_langton_trail) == Game::is_langton_trail) << "\n";
+        ////std::cout << (direction & Game::is_langton_ant) << "\n";
+        world.langton_position = Game::Index3{ x, y, 0 };
     }
+    for (size_t ii = 0; ii < 10; ++ii)
+    {
+        size_t x = GetRandomValue(0, world.dimensions().x - 1);
+        size_t y = GetRandomValue(0, world.dimensions().y - 1);
+        uint8_t direction = GetRandomValue(0, 3) << 3;
+        world.mutable_at(x, y, 0) = (direction | Game::is_langton_ant);
+        //std::cout << (((direction | Game::is_langton_ant) & Game::is_langton_ant ) == Game::is_langton_ant ) << "\n";
+        world.langton_position = Game::Index3{ x, y, 0 };
+    }
+    world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
+
+
     world.langton_direction = Game::Direction::Forward;
     size_t grid_update_period = 6;
     size_t frame = 0;
     const float camera_orbit_speed = .1f;
     DisableCursor();
     bool pause_sim = true;
+    world.commit();
     while (!WindowShouldClose())
     {
         orbital_camera(camera, camera_orbit_speed);
@@ -71,10 +85,9 @@ int main(int argc, char** args)
                 frame = 0;
                 //world.conway();
                 world.langton(1);
-                world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
 
                 //std::cout << world.langton_position << "\n";
-                //world.commit();
+                world.commit();
             }
         }
     }

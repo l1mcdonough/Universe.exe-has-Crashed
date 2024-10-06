@@ -10,14 +10,15 @@ namespace Game
 		Left, Right, Up, Down, Forward, Backward
 	};
 
-	constexpr const inline uint8_t is_langton_trail = 0b11000000;
-	constexpr const inline uint8_t is_langton_ant = 0b000010000;
+	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
+	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
+	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
 	enum LangtonDirection
 	{
-		LEFT = 0b00000000,
-		RIGHT = 0b00100000,
-		FORWARD = 0b0001000,
-		BACKWARD = 0b0011000,
+		LANGTON_LEFT     = 0b00000000,
+		LANGTON_RIGHT    = 0b00001000,
+		LANGTON_FORWARD  = 0b00010000,
+		LANGTON_BACKWARD = 0b00011000,
 	};
 
 	using ColorType = ::Color;
@@ -75,8 +76,8 @@ namespace Game
 				});
 			commit();
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
-				cell_out = 0;
-			});
+					cell_out = 0;
+				});
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
@@ -119,7 +120,7 @@ namespace Game
 			return (z * Nx * Ny) + (y * Nx) + x;
 		}
 
-		inline const Cell_T& read_at(const Index3 index3) const {
+		inline const Cell_T& read_at(Index3 index3) const {
 			return grid_read->at(from_index3(index3));
 		}
 
@@ -127,7 +128,7 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline Mutable mutable_at(const Index3 index3) {
+		inline Mutable mutable_at(Index3 index3) {
 			return mutable_at(index3.x, index3.y, index3.z);
 		}
 
@@ -212,6 +213,15 @@ namespace Game
 			{
 				if (cell > 0)
 				{
+					Color color = RAYWHITE;
+					if ((cell & is_langton_ant) == is_langton_ant)
+						color = PURPLE;
+					else if ((cell & is_langton_trail) == is_langton_trail)
+						color = GREEN;
+					else if ((cell & langton_direction_mask) != 0)
+						color = BROWN;
+					else
+						color = colors.at(cell);
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -221,21 +231,10 @@ namespace Game
 						CubeSideLength, 
 						CubeSideLength, 
 						CubeSideLength,
-						colors.at(cell)
+						color
 					);
 				}
 			});
-			DrawCube(
-				::Vector3{
-					static_cast<float>(langton_position.x) - Nx / 2 + center.x,
-					static_cast<float>(langton_position.z) - Nz / 2 + center.z,
-					static_cast<float>(langton_position.y) - Ny / 2 + center.y
-				},
-				CubeSideLength,
-				CubeSideLength,
-				CubeSideLength,
-				PURPLE
-			);
 		}
 
 		template<size_t ValueCount>
@@ -275,71 +274,49 @@ namespace Game
 
 		void langton(size_t steps)
 		{
-			jump_3d([this](auto& cell_in, Mutable cell_out, Index3 current)
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
-					Direction direction = langton_direction;
-					Index3 next = current;
-					if (cell_in == 3)
+					static const auto clockwise = std::array<uint8_t, 4>{
+						LANGTON_FORWARD,
+						LANGTON_BACKWARD,
+						LANGTON_RIGHT,
+						LANGTON_LEFT
+					};
+					static const auto counter_clockwise = std::array<uint8_t, 4>{
+						LANGTON_BACKWARD,
+						LANGTON_FORWARD,
+						LANGTON_LEFT, 
+						LANGTON_RIGHT
+					};
+					if ((cell_in & is_langton_ant) == is_langton_ant)
 					{
-						cell_out = 0;
-						if (direction == Direction::Forward) {
-							next.x = add_x(current.x);
-							direction = Direction::Right;
+						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
+						if ((cell_in & is_langton_trail) == is_langton_trail)
+						{
+							const auto clockwise_position = std::array<Index3, 4>{
+								Index3{ x, add_y(y), z },
+								Index3{ x, minus_y(y), z },
+								Index3{ add_x(x), y, z },
+								Index3{ minus_x(x), y, z }
+							};
+							cell_out = clockwise[direction];
+							mutable_at(clockwise_position[direction]) = (read_at(clockwise_position[direction]) | is_langton_ant);
 						}
-						else if (direction == Direction::Backward) {
-							next.x = minus_x(current.x);
-							direction = Direction::Left;
-						}
-						else if (direction == Direction::Left) {
-							next.y = minus_y(current.y);
-							direction = Direction::Backward;
-						}
-						else if (direction == Direction::Right) {
-							next.y = add_y(current.y);
-							direction = Direction::Forward;
-						}
-						else if (direction == Direction::Up) next.z = add_z(current.z);
-						else next.z = minus_z(current.z);
-					}
-					else if (cell_in == 1)
-						cell_out = 0;
-					else if (cell_in == 2) {
-						cell_out = 0;
-					}
-					else if (cell_in == 0)
-					{
-						cell_out = 3;
-						if (direction == Direction::Forward) {
-							next.x = minus_x(current.x);
-							direction = Direction::Left;
-						}
-						else if (direction == Direction::Backward) {
-							next.x = add_x(current.x);
-							direction = Direction::Right;
-						}
-						else if (direction == Direction::Left) {
-							next.y = add_y(current.y);
-							direction = Direction::Forward;
-						}
-						else if (direction == Direction::Right) {
-							next.y = minus_y(current.y);
-							direction = Direction::Backward;
-						}
-						else if (direction == Direction::Up) {
-							next.z = minus_z(current.z);
-							direction = Direction::Down;
-						}
-						else {
-							next.z = add_z(current.z);
-							direction = Direction::Up;
+						else
+						{
+							const auto counter_clockwise_position = std::array<Index3, 4>{
+								Index3{ x, minus_y(y), z },
+								Index3{ x, add_y(y), z },
+								Index3{ minus_x(x), y, z },
+								Index3{ add_x(x), y, z }
+							};
+							cell_out = counter_clockwise[direction] | is_langton_trail;
+							mutable_at(counter_clockwise_position[direction]) = (read_at(counter_clockwise_position[direction]) | is_langton_ant);
 						}
 					}
-					else cell_out = 3;
-					langton_direction = direction;
-					langton_position = next;
-					//std::cout << "Cell in " << cell_in << " Cell out " << cell_out.cell << "\n";
-					return next;
-				}, steps, langton_position
+					else
+						cell_out = cell_in;
+				}
 			);
 		}
 
