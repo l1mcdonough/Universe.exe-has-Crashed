@@ -1,7 +1,7 @@
 #include <game/world.hpp>
 
 void orbital_camera(Camera& camera, const float camera_orbit_speed);
-
+void pause_display(bool sim_paused, size_t screen_height);
 int main(int argc, char** args)
 {
     const int screen_width = 1280;
@@ -9,54 +9,61 @@ int main(int argc, char** args)
 
     InitWindow(screen_width, screen_height, "Game");
     SetTargetFPS(60);
-//
+    //
     Camera camera = { 0 };
-    camera.position = Vector3{ .1f, 200.0f, 0.f }; // Camera position
+    camera.position = Vector3{ 10.1f, 20.0f, 0.f }; // Camera position
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
     camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
-    camera.fovy = 180.0f; // Camera field-of-view Y
-    camera.projection = CAMERA_ORTHOGRAPHIC; // Camera projection type
-    Game::GameWorld world;
-    for(size_t ii = 0; ii < 2000; ++ii)
-        world.mutable_at(GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1.f;
-        for (size_t foodX = 50; foodX > 53; foodX++) {
-            world.mutable_at(foodX, 50, 0) = 1.f;
-        }
-    //world.mutable_at(49, 50, 0) = 2;
+    camera.fovy = 90.0f; // Camera field-of-view Y
+    camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
+    Game::GameWorld world(Game::default_cell_colors);
+    for (size_t ii = 0; ii < 20; ++ii)
+        world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;//GetRandomValue(0, 255), GetRandomValue(0, 255), 0) = 1;
+    world.mutable_at(world.dimensions().x / 2 + 10, world.dimensions().y / 2 + 1, 0) = 2;
+    world.mutable_at(world.dimensions().x / 2 + 11, world.dimensions().y / 2 + 1, 0) = 2;
+    world.mutable_at(world.dimensions().x / 2 + 12, world.dimensions().y / 2 + 1, 0) = 2;
     world.commit();
     size_t grid_update_period = 6;
     size_t frame = 0;
     const float camera_orbit_speed = .1f;
     DisableCursor();
+    bool pause_sim = true;
     while (!WindowShouldClose())
     {
         orbital_camera(camera, camera_orbit_speed);
         Vector2 mouse_position = GetMousePosition();
-//        std::cout << camera.up.x << ", "
-//            << camera.up.y << ", "
-//            << camera.up.z << "\n";
-//            //// Check if the left mouse button is clicked
-//        //if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-//        //    // Calculate the column and row of the rectangle clicked
-//        //    int clickedColumn = mousePosition.x / rectSize;
-//        //    int clickedRow = mousePosition.y / rectSize;
-//        //    grid[clickedRow][clickedColumn] = 255;
-//        //}
+        //        std::cout << camera.up.x << ", "
+        //            << camera.up.y << ", "
+        //            << camera.up.z << "\n";
+        //            //// Check if the left mouse button is clicked
+        //        //if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        //        //    // Calculate the column and row of the rectangle clicked
+        //        //    int clickedColumn = mousePosition.x / rectSize;
+        //        //    int clickedRow = mousePosition.y / rectSize;
+        //        //    grid[clickedRow][clickedColumn] = 255;
+        //        //}
+
 
         BeginDrawing();
-            ClearBackground(RAYWHITE);
-            BeginMode3D(camera);
-                    world.draw(::Vector3{0,0,0}, Game::default_cell_colors);
-                DrawGrid(100, 1.0f);
-            EndMode3D();
-            DrawFPS(10, 10);
+        ClearBackground(RAYWHITE);
+        BeginMode3D(camera);
+        world.draw_3d(::Vector3{ 0.f, 0.f, 0.f });
+        DrawGrid(100, 1.0f);
+        EndMode3D();
+        DrawFPS(10, 10);
+        pause_display(pause_sim, screen_height);
         EndDrawing();
-        ++frame;
-        if (frame % grid_update_period == 0)
+        if (GetKeyPressed() == KEY_P)
+            pause_sim = !pause_sim;
+        if (pause_sim == false)
         {
-            frame = 0;
-            world.conway();
-            world.commit();
+            ++frame;
+            if (frame % grid_update_period == 0)
+            {
+                frame = 0;
+                world.conway();
+                world.commit();
+            }
         }
     }
     // Cleanup //
@@ -84,4 +91,12 @@ void orbital_camera(Camera& camera, const float camera_orbit_speed)
     camera_forward.y *= zoom;
     camera_forward.z *= zoom;
     camera.position = Vector3Add(camera.position, camera_forward);
+}
+void pause_display(bool pause_sim, size_t screen_height)
+{
+    DrawText("Simulation: ", 10, screen_height - 20, 10, BLACK);
+    if (pause_sim == false)
+        DrawText("[RUNNING]", 70, screen_height - 20, 10, GREEN);
+    else
+        DrawText("[PAUSED]", 70, screen_height - 20, 10, RED);
 }

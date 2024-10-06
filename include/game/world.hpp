@@ -10,6 +10,48 @@ namespace Game
 		size_t x, y, z;
 	};
 
+	using ColorsType = std::vector<::Color>;
+
+	inline const auto default_cell_colors = std::vector{
+		RAYWHITE,
+		BLUE,
+		RED,
+		GREEN,
+		PURPLE,
+		ORANGE
+	};
+
+	template<
+		typename Cell_T, 
+		size_t Nx, 
+		size_t Ny
+	>
+	struct CellImageBuffer2D
+	{
+		ColorsType cell_colors;
+		static const auto cell_null = Cell_T{ 0 };
+		const ::Color cell_null_color;
+		
+		CellImageBuffer2D(ColorsType cell_colors_ = default_cell_colors)
+			: cell_colors(cell_colors_), cell_null_color(cell_colors[cell_null]) {
+			buffer = GenImageColor(Nx, Ny, cell_null_color);
+		}
+		
+		~CellImageBuffer2D() {
+			UnloadImage(buffer);
+		}
+
+		inline void write(const size_t x, const size_t y, const Cell_T cell_value) {
+			SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
+		}
+		inline ::Color read(const size_t x, const size_t y) {
+			return GetImageColor(buffer, x, y);
+		}
+
+	protected: 
+		Image buffer;
+	};
+
 	template<
 		typename Cell_T, 
 		size_t Nx, 
@@ -20,22 +62,47 @@ namespace Game
 	>
 	struct World
 	{
-		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
-		World() : grid_read(new Cube), grid_write(new Cube)
+		using CellImageBuffer2DType = CellImageBuffer2D<Cell_T, Nz, Ny>;
+		using CellImageBuffers2DType = std::array<CellImageBuffer2DType, Nz>;
+		struct Mutable
 		{
-			loop3d([](auto, auto, auto& cell_out, size_t, size_t, size_t) {
+			const size_t x;
+			const size_t y;
+			Cell_T& cell;
+			CellImageBuffer2DType& buffer_2d;
+			inline Mutable& operator=(Cell_T value)
+			{
+				cell = value;
+				buffer_2d.write(x, y, value);
+				return *this;
+			}
+			inline operator Cell_T&() {
+				return cell;
+			}
+		};
+		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
+		static const auto cell_null = Cell_T{ 0 };
+		ColorsType colors;
+		World(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
+		{
+			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 					cell_out = 0;
 				});
 			commit();
-			loop3d([](auto, auto, auto& cell_out, size_t, size_t, size_t) {
+			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 				cell_out = 0;
 			});
+			for (auto& buffer : cell_image_buffers_2d) buffer.cell_colors = colors;
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
 		~World() { delete grid_read; delete grid_write; }
 		World& operator=(const World& other) = delete;
-		World& operator=(World&& other) = default;
+		World& operator=(World&& other) = default; 
+
+		constexpr inline const Index3 dimensions() const {
+			return Index3{ Nx, Ny, Nz };
+		}
 
 		#define GAME_WORLD_HPP_HEADER_MINUS_DIM(DIM) \
 			auto minus_##DIM (size_t DIM ) const \
@@ -78,15 +145,21 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline Cell_T& mutable_at(const Index3 index3) const {
+		inline Mutable mutable_at(const Index3 index3) {
 			return grid_write->at(from_index3(index3));
 		}
 
-		inline Cell_T& mutable_at(const size_t x, const size_t y, const size_t z) {
-			return grid_write->at(from_index3(x, y, z));
+		inline Mutable mutable_at(size_t x, size_t y, size_t z)
+		{
+			return Mutable{ 
+				x, 
+				y, 
+				grid_write->at(from_index3(x, y, z)), 
+				cell_image_buffers_2d[z]
+			};
 		}
 
-		Cell_T neighbor_sum(size_t x, size_t y, size_t z) const
+		Cell_T neighbor_sum(size_t x, size_t y, size_t z, uint8_t color) const
 		{
 			Cell_T total = Cell_T{ 0 };
 			for (size_t ix = minus_x(x); ix <= add_x(x); ++ix)
@@ -94,7 +167,8 @@ namespace Game
 				for (size_t iy = minus_y(y); iy <= add_y(y); ++iy)
 				{
 					for (size_t iz = minus_z(z); iz <= add_z(z); ++iz)
-						total += read_at(ix, iy, iz);
+						if (read_at(ix, iy, iz) == color)
+						total++;
 				}
 			}
 			return total;
@@ -142,9 +216,13 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw(::Vector3 center, auto& colors) const
+		void draw_2d_in_3d()
 		{
-			loop3d_read([&colors, center](const auto, const auto& cell, size_t x, size_t y, size_t z)
+		}
+
+		void draw_3d(::Vector3 center) const
+		{
+			loop3d_read([this, center](const auto, const auto& cell, size_t x, size_t y, size_t z)
 			{
 				if (cell > 0)
 				{
@@ -162,32 +240,41 @@ namespace Game
 				}
 			});
 		}
-
+		bool hasFoodRed(size_t x, size_t y, size_t z) {
+			return neighbor_sum(x, y, z, 1) > 2;
+		}
+		bool isGrowableRed(size_t x, size_t y, size_t z) {
+			bool hasFood = hasFoodRed(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
+			return hasFood && hasRedNeighbor;
+		}
 		void conway()
 		{
-			loop3d([this](auto, auto& cell_in, auto& cell_out, size_t x, size_t y, size_t z) {
-				const size_t sum = neighbor_sum(x, y, z);
-				static uint8_t results[27] = { 0, 0, cell_in, 1, 0, 0, 0, 0, 0 };
-				cell_out = results[sum]; // TODO: There is proably a bug here, without modulo it crashes when accessing colors...
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z) {
+				if (cell_in != 2) {
+					if (isGrowableRed(x, y, z)) {
+						cell_out = 2;
+					}
+					else {
+						const size_t sum = neighbor_sum(x, y, z, 1) - cell_in;
+						static uint8_t results[27] = { 0, 0, cell_in, 1, 0, 0, 0, 0, 0 };
+						cell_out = results[sum]; // TODO: There is proably a bug here, without modulo it crashes when accessing colors...
+					}
+				}
+				else {
+					if (hasFoodRed(x, y, z))
+						cell_out = cell_in;
+					else cell_out = 0;
+				}
 			});
 		}
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
+		CellImageBuffers2DType cell_image_buffers_2d;
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 256, 256, 10>;
-
-	inline const auto default_cell_colors = std::array{
-		RAYWHITE, 
-		BLUE,
-		RED,
-		GREEN,
-		PURPLE,
-		ORANGE
-	};
-
-
+	using GameWorld = World<DefaultCellType, 128, 128, 10>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
