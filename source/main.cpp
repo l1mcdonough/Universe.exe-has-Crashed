@@ -19,10 +19,19 @@ int main(int argc, char** args)
     Game::GameWorld world(Game::default_cell_colors);
     //for (size_t ii = 0; ii < 20; ++ii)
     //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
+    //for (size_t ii = 0; ii < 2000; ++ii)
+        //world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
     for (size_t ii = 0; ii < 2000; ++ii)
-        world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
-
-    world.commit();
+    {
+        size_t x = GetRandomValue(0, world.dimensions().x - 1);
+        size_t y = GetRandomValue(0, world.dimensions().y - 1);
+        world.mutable_at(x, y, 0) = 3;
+        world.commit();
+        world.mutable_at(x, y, 0) = 3;
+        world.commit();
+        world.langton_position = Game::Index3{ x, y, 0};
+    }
+    world.langton_direction = Game::Direction::Forward;
     size_t grid_update_period = 6;
     size_t frame = 0;
     const float camera_orbit_speed = .1f;
@@ -47,7 +56,7 @@ int main(int argc, char** args)
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
-                    world.draw_2d_in_3d(::Vector3{0.f, 0.f, 0.f});
+                    world.draw_3d(::Vector3{0.f, 0.f, 0.f});
                     DrawGrid(100, 1.0f);
             EndMode3D();
             DrawFPS(10, 10);
@@ -60,7 +69,9 @@ int main(int argc, char** args)
             if (frame % grid_update_period == 0)
             {
                 frame = 0;
-                world.conway();
+                //world.conway();
+                world.langton(1);
+                std::cout << world.langton_position << "\n";
                 world.commit();
             }
         }

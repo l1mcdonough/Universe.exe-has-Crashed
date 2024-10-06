@@ -5,11 +5,21 @@
 #define GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
 namespace Game
 {
+
+	enum class Direction {
+		Left, Right, Up, Down, Forward, Backward
+	};
 	using ColorType = decltype(RAYWHITE);
 	struct Index3 {
 		size_t x, y, z;
+		operator Vector3() {
+			return Vector3{ static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) };
+		}
 	};
-
+	std::ostream& operator<<(std::ostream& out, const Index3& index) {
+		out << "Index3:{.x=" << index.x << ",.y=" << index.y << ",.z=" << index.z << "\n";
+		return out;
+	}
 	using ColorsType = std::vector<::Color>;
 
 	inline const auto default_cell_colors = std::vector{
@@ -180,11 +190,11 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline Mutable<CellImageBuffer2DType> mutable_at(const Index3 index3) {
+		inline auto mutable_at(const Index3 index3) {
 			return grid_write->at(from_index3(index3));
 		}
 
-		inline Mutable<CellImageBuffer2DType> mutable_at(size_t x, size_t y, size_t z)
+		inline auto mutable_at(size_t x, size_t y, size_t z)
 		{
 			return Mutable< CellImageBuffer2DType>{
 				x, 
@@ -234,6 +244,14 @@ namespace Game
 			}
 
 		}
+
+		auto jump_3d(auto visitor, size_t steps, Index3 next)
+		{
+			for (size_t ii = 0; ii < steps; ++ii) {
+				next = visitor(grid_read, read_at(next), mutable_at(next), next);
+			}
+		}
+
 		auto loop3d(auto visitor)
 		{
 			for (size_t iz = 0; iz < Nz; ++iz)
@@ -284,6 +302,9 @@ namespace Game
 			{
 				if (cell > 0)
 				{
+					auto color = cell;
+					if (x == langton_position.x && y == langton_position.y && z == langton_position.z)
+						color = 4;
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -293,10 +314,22 @@ namespace Game
 						CubeSideLength, 
 						CubeSideLength, 
 						CubeSideLength,
-						colors.at(cell)
+						colors.at(color)
 					);
 				}
 			});
+		}
+
+		template<size_t ValueCount>
+		void copy_read_buffer_values(std::array<Cell_T, ValueCount> values)
+		{
+			for (auto value : values)
+			{
+				loop3d([this, value](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z) {
+						if (cell_in == value)
+							cell_out = cell_in;
+					});
+			}
 		}
 
 		void conway()
@@ -310,6 +343,79 @@ namespace Game
 				}
 			);
 		}
+
+		void langton(size_t steps)
+		{
+			jump_3d([this](auto, auto& cell_in, auto cell_out, Index3 current)
+				{
+					Direction direction = langton_direction;
+					Index3 next = current;
+					if (cell_in == 3)
+					{
+						cell_out = 0;
+						if (direction == Direction::Forward) {
+							next.x = add_x(current.x);
+							direction = Direction::Right;
+						}
+						else if (direction == Direction::Backward) {
+							next.x = minus_x(current.x);
+							direction = Direction::Left;
+						}
+						else if (direction == Direction::Left) {
+							next.y = minus_y(current.y);
+							direction = Direction::Backward;
+						}
+						else if (direction == Direction::Right) {
+							next.y = add_y(current.y);
+							direction = Direction::Forward;
+						}
+						else if (direction == Direction::Up) next.z = add_z(current.z);
+						else next.z = minus_z(current.z);
+					}
+					else if (cell_in == 1)
+						cell_out = 3;
+					else if (cell_in == 2) {
+						cell_out = 2;
+					}
+					else if (cell_in == 0)
+					{
+						cell_out = 3;
+						if (direction == Direction::Forward) {
+							next.x = minus_x(current.x);
+							direction = Direction::Left;
+						}
+						else if (direction == Direction::Backward) {
+							next.x = add_x(current.x);
+							direction = Direction::Right;
+						}
+						else if (direction == Direction::Left) {
+							next.y = add_y(current.y);
+							direction = Direction::Forward;
+						}
+						else if (direction == Direction::Right) {
+							next.y = minus_y(current.y);
+							direction = Direction::Backward;
+						}
+						else if (direction == Direction::Up) {
+							next.z = minus_z(current.z);
+							direction = Direction::Down;
+						}
+						else {
+							next.z = add_z(current.z);
+							direction = Direction::Up;
+						}
+					}
+					else cell_out = 3;
+					langton_direction = direction;
+					langton_position = next;
+					commit();
+					return next;
+				}, steps, langton_position
+			);
+		}
+
+		Index3 langton_position;
+		Direction langton_direction;
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
@@ -318,6 +424,6 @@ namespace Game
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 64, 64, 1>;
+	using GameWorld = World<DefaultCellType, 48, 48, 32>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
