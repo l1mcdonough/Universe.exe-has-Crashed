@@ -19,7 +19,7 @@ int main(int argc, char** args)
     Game::GameWorld world(Game::default_cell_colors);
     //for (size_t ii = 0; ii < 20; ++ii)
     //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
-    for (size_t ii = 0; ii < 20; ++ii)
+    for (size_t ii = 0; ii < 2000; ++ii)
         world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
 
     world.commit();

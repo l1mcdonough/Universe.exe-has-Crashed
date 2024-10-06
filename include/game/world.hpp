@@ -28,6 +28,7 @@ namespace Game
 	>
 	struct CellImageBuffer2D
 	{
+		constexpr static const bool has_render_mode = true;
 		ColorsType cell_colors;
 		Mesh plane_mesh;
 		Model plane;
@@ -50,6 +51,7 @@ namespace Game
 
 		struct RenderMode
 		{
+			constexpr static const bool has_render_mode = false;
 			RenderTexture& buffer;
 			ColorsType& cell_colors;
 			inline RenderMode(RenderTexture& buffer_, ColorsType& cell_colors_) : buffer(buffer_), cell_colors(cell_colors_) {
@@ -94,16 +96,20 @@ namespace Game
 	{
 		using CellImageBuffer2DType = CellImageBuffer2D<Cell_T, Nx, Ny>;
 		using CellImageBuffers2DType = std::array<CellImageBuffer2DType, Nz>;
+		template<typename R>
 		struct Mutable
 		{
 			const size_t x;
 			const size_t y;
 			Cell_T& cell;
-			CellImageBuffer2DType& buffer_2d;
+			R& render;
 			inline Mutable& operator=(Cell_T value)
 			{
 				cell = value;
-				buffer_2d.write_one(x, y, value);
+				if constexpr (R::has_render_mode == true)
+					render.write_one(x, y, value);
+				else
+					render.write(x, y, value);
 				return *this;
 			}
 			inline operator Cell_T&() {
@@ -174,19 +180,30 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline Mutable mutable_at(const Index3 index3) {
+		inline Mutable<CellImageBuffer2DType> mutable_at(const Index3 index3) {
 			return grid_write->at(from_index3(index3));
 		}
 
-		inline Mutable mutable_at(size_t x, size_t y, size_t z)
+		inline Mutable<CellImageBuffer2DType> mutable_at(size_t x, size_t y, size_t z)
 		{
-			return Mutable{ 
+			return Mutable< CellImageBuffer2DType>{
 				x, 
 				y, 
 				grid_write->at(from_index3(x, y, z)), 
 				cell_image_buffers_2d[z]
 			};
 		}
+
+		inline auto mutable_at(size_t x, size_t y, size_t z, typename CellImageBuffer2DType::RenderMode render_mode)
+		{
+			return Mutable{
+				x,
+				y,
+				grid_write->at(from_index3(x, y, z)),
+				render_mode
+			};
+		}
+
 
 		Cell_T neighbor_sum(size_t x, size_t y, size_t z) const
 		{
@@ -219,19 +236,21 @@ namespace Game
 		}
 		auto loop3d(auto visitor)
 		{
-			for (size_t ix = 0; ix < Nx; ++ix)
+			for (size_t iz = 0; iz < Nz; ++iz)
 			{
-				for (size_t iy = 0; iy < Ny; ++iy)
+				auto render_mode = cell_image_buffers_2d[iz].render_mode();
+				for (size_t ix = 0; ix < Nx; ++ix)
 				{
-					for (size_t iz = 0; iz < Nz; ++iz)
+					for (size_t iy = 0; iy < Ny; ++iy)
 					{
+
 						/*
 						@grid_read, so you can examine things around them
 						@read_at, for the value of the cell
 						@mutable_at, to be written to
 						@ix, iy, iz, incase the inidicies are nessisary (can be used with from_index if grid is captured)
 						*/
-						visitor(grid_read, read_at(ix, iy, iz), mutable_at(ix, iy, iz), ix, iy, iz);
+						visitor(grid_read, read_at(ix, iy, iz), mutable_at(ix, iy, iz, render_mode), ix, iy, iz);
 					}
 				}
 			}
@@ -282,7 +301,7 @@ namespace Game
 
 		void conway()
 		{
-			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
 					auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
 					const size_t sum = neighbor_sum(x, y, z) - cell_in;
@@ -299,6 +318,6 @@ namespace Game
 	};
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 24, 24, 1>;
+	using GameWorld = World<DefaultCellType, 64, 64, 1>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD

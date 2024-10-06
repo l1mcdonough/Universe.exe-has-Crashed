@@ -2,6 +2,7 @@
 #include <array>
 #include <map>
 #include <vector>
+#include <optional>
 #include "raylib.h"
 #include <rlgl.h>
 #include <raymath.h>
