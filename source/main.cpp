@@ -1,7 +1,7 @@
 #include <game/application.hpp>
 
 using namespace Game::RayExtend;
-//a different comment
+//a comment
 int main(int argc, char** args)
 {
     Game::Application application;
