@@ -288,6 +288,13 @@ namespace Game
 						LANGTON_LEFT, 
 						LANGTON_RIGHT
 					};
+					auto ant_at = [&](Index3 position, uint8_t direction)
+					{
+						mutable_at(position) = (mutable_at(position) | direction | is_langton_ant);
+						commit();
+						mutable_at(position) = (mutable_at(position) | direction | is_langton_ant);
+						commit();
+					};
 					if ((cell_in & is_langton_ant) == is_langton_ant)
 					{
 						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
@@ -300,7 +307,7 @@ namespace Game
 								Index3{ minus_x(x), y, z }
 							};
 							cell_out = clockwise[direction];
-							mutable_at(clockwise_position[direction]) = (read_at(clockwise_position[direction]) | is_langton_ant);
+							ant_at(clockwise_position[direction], clockwise[direction]);
 						}
 						else
 						{
@@ -311,7 +318,7 @@ namespace Game
 								Index3{ add_x(x), y, z }
 							};
 							cell_out = counter_clockwise[direction] | is_langton_trail;
-							mutable_at(counter_clockwise_position[direction]) = (read_at(counter_clockwise_position[direction]) | is_langton_ant);
+							ant_at(counter_clockwise_position[direction], counter_clockwise[direction]);
 						}
 					}
 					else
@@ -320,8 +327,6 @@ namespace Game
 			);
 		}
 
-		Index3 langton_position;
-		Direction langton_direction;
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
@@ -331,4 +336,4 @@ namespace Game
 	using DefaultCellType = uint8_t;
 	using GameWorld = World<DefaultCellType, 48, 48, 1>;
 }
-#endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
+#endif // GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
