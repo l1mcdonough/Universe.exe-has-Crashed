@@ -10,17 +10,17 @@ namespace Game
 		Left, Right, Up, Down, Forward, Backward
 	};
 
-	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
-	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
-	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
+	constexpr const inline uint8_t is_langton_trail       = 0b00010000;
+	constexpr const inline uint8_t is_langton_ant         = 0b10000000;
+	constexpr const inline uint8_t langton_direction_mask = 0b01100000;
 	constexpr const inline uint8_t t = (2 << 3);
 	
 	enum LangtonDirection
 	{
 		LANGTON_LEFT     = 0b00000000,
-		LANGTON_RIGHT    = 0b00001000,
-		LANGTON_FORWARD  = 0b00010000,
-		LANGTON_BACKWARD = 0b00011000,
+		LANGTON_RIGHT    = 0b00100000,
+		LANGTON_FORWARD  = 0b01000000,
+		LANGTON_BACKWARD = 0b01100000,
 	};
 
 	using ColorType = ::Color;
@@ -37,12 +37,13 @@ namespace Game
 	using ColorsType = std::vector<::Color>;
 
 	inline const auto default_cell_colors = std::vector{
-		RAYWHITE,
-		BLUE,
-		RED,
-		GREEN,
-		PURPLE,
-		ORANGE
+		RAYWHITE, 
+		BLUE, 
+		RED, 
+		GREEN, 
+		PURPLE, 
+		MAGENTA, 
+		DARKGREEN 
 	};
 
 	inline DefaultCellType mod_cell(DefaultCellType from, DefaultCellType to)
@@ -71,7 +72,7 @@ namespace Game
 		if (type == 1)
 			return "Conway";
 		else if (type == 2)
-			return "Conway Blocker";
+			return "Conway Fire!";
 		else if (type == 3 || (type & is_langton_trail) == is_langton_trail)
 			return "Ant Trail";
 		else if (type == 4 || (type & is_langton_ant) == is_langton_ant)
@@ -86,7 +87,7 @@ namespace Game
 		size_t Nx, 
 		size_t Ny, 
 		size_t Nz, 
-		bool WrapAround = false, 
+		bool WrapAround = true, 
 		float CubeSideLength = 1.f
 	>
 	struct Grid
@@ -340,6 +341,66 @@ namespace Game
 				}
 			);
 		}
+		bool isGrowableOrange(size_t x, size_t y, size_t z) {
+			bool hasFood = hasConwayFood(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
+			return hasFood && hasRedNeighbor;
+		}
+
+		bool hasConwayFood(size_t x, size_t y, size_t z) {
+			return neighbor_sum(x, y, z, 1) > 2;
+		}
+		bool isGrowableRed(size_t x, size_t y, size_t z) {
+			bool hasFood = hasConwayFood(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
+			return hasFood && hasRedNeighbor;
+		}
+		bool isGrowableBuilder(size_t x, size_t y, size_t z) {
+			bool hasFood = hasConwayFood(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 3) > 2;
+			return hasFood && hasRedNeighbor;
+		}
+
+		void anti_conway_builder()
+		{
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+				{
+					if (cell_in != 2) {
+						if (isGrowableRed(x, y, z)) {
+							cell_out = 2;
+						}
+					}
+					else {
+						if (hasConwayFood(x, y, z))
+							cell_out = cell_in;
+						else if (neighbor_sum(x, y, z, 2) / 2 <= 36)
+							cell_out = cell_in;
+						else
+							cell_out = 0;
+					}
+				}
+			);
+		}
+
+
+		void anti_conway()
+		{
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+				{
+					if (cell_in != 2) {
+						if (isGrowableRed(x, y, z)) {
+							cell_out = 2;
+						}
+					}
+					else {
+						if (hasConwayFood(x, y, z))
+							cell_out = cell_in;
+						else
+							cell_out = 0;
+					}
+				}
+			);
+		}
 
 		void reset()
 		{
@@ -414,7 +475,7 @@ namespace Game
 								Index3{ x, y, add_z(z) },
 								Index3{ x, y, minus_z(z) }
 						};
-						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
+						Cell_T direction = (cell_in & langton_direction_mask) >> 5;
 						if ((cell_in & is_langton_trail) == 1)
 						{
 							cell_out = 1;
@@ -426,13 +487,13 @@ namespace Game
 						{
 							cell_out = 0;
 							uint8_t next_direction = clockwise[direction];
-							ant_at(position[next_direction >> 3], next_direction);
+							ant_at(position[next_direction >> 5], next_direction);
 						}
 						else
 						{
 							cell_out = is_langton_trail;
 							uint8_t next_direction = counter_clockwise[direction];
-							ant_at(position[next_direction >> 3], next_direction);
+							ant_at(position[next_direction >> 5], next_direction);
 						}
 					}
 					else if((cell_in & is_langton_trail) == is_langton_trail)

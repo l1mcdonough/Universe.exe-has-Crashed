@@ -199,6 +199,7 @@ namespace Game
                     //fractal_grid.commit();
                     grid.conway();
                     grid.langton();
+                    grid.anti_conway();
                     grid.commit();
                 }
             }
