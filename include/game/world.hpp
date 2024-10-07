@@ -5,11 +5,33 @@
 #define GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
 namespace Game
 {
-	using ColorType = decltype(RAYWHITE);
-	struct Index3 {
-		size_t x, y, z;
+
+	enum class Direction {
+		Left, Right, Up, Down, Forward, Backward
 	};
 
+	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
+	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
+	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
+	enum LangtonDirection
+	{
+		LANGTON_LEFT     = 0b00000000,
+		LANGTON_RIGHT    = 0b00001000,
+		LANGTON_FORWARD  = 0b00010000,
+		LANGTON_BACKWARD = 0b00011000,
+	};
+
+	using ColorType = ::Color;
+	struct Index3 {
+		size_t x, y, z;
+		operator Vector3() {
+			return Vector3{ static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) };
+		}
+	};
+	std::ostream& operator<<(std::ostream& out, const Index3& index) {
+		out << "Index3:{.x=" << index.x << ",.y=" << index.y << ",.z=" << index.z << "\n";
+		return out;
+	}
 	using ColorsType = std::vector<::Color>;
 
 	inline const auto default_cell_colors = std::vector{
@@ -24,37 +46,6 @@ namespace Game
 	template<
 		typename Cell_T, 
 		size_t Nx, 
-		size_t Ny
-	>
-	struct CellImageBuffer2D
-	{
-		ColorsType cell_colors;
-		static const auto cell_null = Cell_T{ 0 };
-		const ::Color cell_null_color;
-		
-		CellImageBuffer2D(ColorsType cell_colors_ = default_cell_colors)
-			: cell_colors(cell_colors_), cell_null_color(cell_colors[cell_null]) {
-			buffer = GenImageColor(Nx, Ny, cell_null_color);
-		}
-		
-		~CellImageBuffer2D() {
-			UnloadImage(buffer);
-		}
-
-		inline void write(const size_t x, const size_t y, const Cell_T cell_value) {
-			SetPixelColor(buffer.data, cell_colors[cell_value], buffer.format);
-		}
-		inline ::Color read(const size_t x, const size_t y) {
-			return GetImageColor(buffer, x, y);
-		}
-
-	protected: 
-		Image buffer;
-	};
-
-	template<
-		typename Cell_T, 
-		size_t Nx, 
 		size_t Ny, 
 		size_t Nz, 
 		bool WrapAround = false, 
@@ -62,18 +53,13 @@ namespace Game
 	>
 	struct World
 	{
-		using CellImageBuffer2DType = CellImageBuffer2D<Cell_T, Nz, Ny>;
-		using CellImageBuffers2DType = std::array<CellImageBuffer2DType, Nz>;
 		struct Mutable
 		{
 			const size_t x;
 			const size_t y;
 			Cell_T& cell;
-			CellImageBuffer2DType& buffer_2d;
-			inline Mutable& operator=(Cell_T value)
-			{
+			inline Mutable& operator=(Cell_T value) {
 				cell = value;
-				buffer_2d.write(x, y, value);
 				return *this;
 			}
 			inline operator Cell_T&() {
@@ -90,20 +76,17 @@ namespace Game
 				});
 			commit();
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
-				cell_out = 0;
-			});
-			for (auto& buffer : cell_image_buffers_2d) buffer.cell_colors = colors;
+					cell_out = 0;
+				});
 		}
 		World(const World& other) = delete;
 		World(World&& other) = default;
-		~World() { delete grid_read; delete grid_write; }
+		~World() { delete grid_read; delete grid_write;  }
 		World& operator=(const World& other) = delete;
-		World& operator=(World&& other) = default; 
-
+		World& operator=(World&& other) = default;
 		constexpr inline const Index3 dimensions() const {
 			return Index3{ Nx, Ny, Nz };
 		}
-
 		#define GAME_WORLD_HPP_HEADER_MINUS_DIM(DIM) \
 			auto minus_##DIM (size_t DIM ) const \
 			{ \
@@ -137,7 +120,7 @@ namespace Game
 			return (z * Nx * Ny) + (y * Nx) + x;
 		}
 
-		inline const Cell_T& read_at(const Index3 index3) const {
+		inline const Cell_T& read_at(Index3 index3) const {
 			return grid_read->at(from_index3(index3));
 		}
 
@@ -145,21 +128,21 @@ namespace Game
 			return grid_read->at(from_index3(x, y, z));
 		}
 
-		inline Mutable mutable_at(const Index3 index3) {
-			return grid_write->at(from_index3(index3));
+		inline Mutable mutable_at(Index3 index3) {
+			return mutable_at(index3.x, index3.y, index3.z);
 		}
 
 		inline Mutable mutable_at(size_t x, size_t y, size_t z)
 		{
-			return Mutable{ 
+			return Mutable{
 				x, 
 				y, 
-				grid_write->at(from_index3(x, y, z)), 
-				cell_image_buffers_2d[z]
+				grid_write->at(from_index3(x, y, z))
 			};
 		}
 
-		Cell_T neighbor_sum(size_t x, size_t y, size_t z, uint8_t color) const
+
+		Cell_T neighbor_sum(size_t x, size_t y, size_t z) const
 		{
 			Cell_T total = Cell_T{ 0 };
 			for (size_t ix = minus_x(x); ix <= add_x(x); ++ix)
@@ -167,8 +150,7 @@ namespace Game
 				for (size_t iy = minus_y(y); iy <= add_y(y); ++iy)
 				{
 					for (size_t iz = minus_z(z); iz <= add_z(z); ++iz)
-						if (read_at(ix, iy, iz) == color)
-						total++;
+						total += read_at(ix, iy, iz);
 				}
 			}
 			return total;
@@ -189,14 +171,23 @@ namespace Game
 			}
 
 		}
+
+		auto jump_3d(auto visitor, size_t steps, Index3 next)
+		{
+			for (size_t ii = 0; ii < steps; ++ii) {
+				next = visitor(read_at(next), mutable_at(next), next);
+			}
+		}
+
 		auto loop3d(auto visitor)
 		{
-			for (size_t ix = 0; ix < Nx; ++ix)
+			for (size_t iz = 0; iz < Nz; ++iz)
 			{
-				for (size_t iy = 0; iy < Ny; ++iy)
+				for (size_t ix = 0; ix < Nx; ++ix)
 				{
-					for (size_t iz = 0; iz < Nz; ++iz)
+					for (size_t iy = 0; iy < Ny; ++iy)
 					{
+
 						/*
 						@grid_read, so you can examine things around them
 						@read_at, for the value of the cell
@@ -216,16 +207,21 @@ namespace Game
 			grid_write = swap;
 		}
 
-		void draw_2d_in_3d()
-		{
-		}
-
 		void draw_3d(::Vector3 center) const
 		{
 			loop3d_read([this, center](const auto, const auto& cell, size_t x, size_t y, size_t z)
 			{
 				if (cell > 0)
 				{
+					Color color = RAYWHITE;
+					if ((cell & is_langton_ant) == is_langton_ant)
+						color = PURPLE;
+					else if ((cell & is_langton_trail) == is_langton_trail)
+						color = GREEN;
+					else if ((cell & langton_direction_mask) != 0)
+						color = BROWN;
+					else
+						color = colors.at(cell);
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -235,46 +231,105 @@ namespace Game
 						CubeSideLength, 
 						CubeSideLength, 
 						CubeSideLength,
-						colors.at(cell)
+						color
 					);
 				}
 			});
+
 		}
-		bool hasFoodRed(size_t x, size_t y, size_t z) {
-			return neighbor_sum(x, y, z, 1) > 2;
+
+		template<size_t ValueCount>
+		void copy_mutable_buffer(std::array<Cell_T, ValueCount> values)
+		{
+			commit();
+			for (auto value : values)
+			{
+				for (size_t iz = 0; iz < Nz; ++iz)
+				{
+					for (size_t ix = 0; ix < Nx; ++ix)
+					{
+						for (size_t iy = 0; iy < Ny; ++iy)
+						{
+							if (read_at(ix, iy, iz) == value)
+							{
+								mutable_at(ix, iy, iz) = value;
+							}
+						}
+					}
+				}
+			}
+			commit();
 		}
-		bool isGrowableRed(size_t x, size_t y, size_t z) {
-			bool hasFood = hasFoodRed(x, y, z);
-			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
-			return hasFood && hasRedNeighbor;
-		}
+
 		void conway()
 		{
-			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z) {
-				if (cell_in != 2) {
-					if (isGrowableRed(x, y, z)) {
-						cell_out = 2;
-					}
-					else {
-						const size_t sum = neighbor_sum(x, y, z, 1) - cell_in;
-						static uint8_t results[27] = { 0, 0, cell_in, 1, 0, 0, 0, 0, 0 };
-						cell_out = results[sum]; // TODO: There is proably a bug here, without modulo it crashes when accessing colors...
-					}
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
+					const size_t sum = neighbor_sum(x, y, z) - cell_in;
+					if (sum >= results.size()) cell_out = 0;
+					else cell_out = results[sum];
 				}
-				else {
-					if (hasFoodRed(x, y, z))
-						cell_out = cell_in;
-					else cell_out = 0;
-				}
-			});
+			);
 		}
+
+		void langton(size_t steps)
+		{
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					static const auto clockwise = std::array<uint8_t, 4>{
+						LANGTON_FORWARD,
+						LANGTON_BACKWARD,
+						LANGTON_RIGHT,
+						LANGTON_LEFT
+					};
+					static const auto counter_clockwise = std::array<uint8_t, 4>{
+						LANGTON_BACKWARD,
+						LANGTON_FORWARD,
+						LANGTON_LEFT, 
+						LANGTON_RIGHT
+					};
+					if ((cell_in & is_langton_ant) == is_langton_ant)
+					{
+						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
+						if ((cell_in & is_langton_trail) == is_langton_trail)
+						{
+							const auto clockwise_position = std::array<Index3, 4>{
+								Index3{ x, add_y(y), z },
+								Index3{ x, minus_y(y), z },
+								Index3{ add_x(x), y, z },
+								Index3{ minus_x(x), y, z }
+							};
+							cell_out = clockwise[direction];
+							mutable_at(clockwise_position[direction]) = (read_at(clockwise_position[direction]) | is_langton_ant);
+						}
+						else
+						{
+							const auto counter_clockwise_position = std::array<Index3, 4>{
+								Index3{ x, minus_y(y), z },
+								Index3{ x, add_y(y), z },
+								Index3{ minus_x(x), y, z },
+								Index3{ add_x(x), y, z }
+							};
+							cell_out = counter_clockwise[direction] | is_langton_trail;
+							mutable_at(counter_clockwise_position[direction]) = (read_at(counter_clockwise_position[direction]) | is_langton_ant);
+						}
+					}
+					else
+						cell_out = cell_in;
+				}
+			);
+		}
+
+		Index3 langton_position;
+		Direction langton_direction;
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
-		CellImageBuffers2DType cell_image_buffers_2d;
 	};
+	
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 128, 128, 10>;
+	using GameWorld = World<DefaultCellType, 48, 48, 10>;
 }
 #endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
