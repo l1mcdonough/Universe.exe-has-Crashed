@@ -1,5 +1,5 @@
 #include <game/common.hpp>
-#include <game/world.hpp>
+#include <game/grid.hpp>
 
 struct CubePlacement {
 	unsigned int x = 24;
@@ -8,11 +8,11 @@ struct CubePlacement {
     int cubeType = 1;
     float CubeSideLength = 1.f;
 
-    void processCubePlacement(Game::GameWorld* world, int key) {
+    void processCubePlacement(Game::GameGrid* world, int key) {
         handleKey(world, key);
         drawGhostCube(world);
     }
-	void handleKey(Game::GameWorld* world, int key) {
+	void handleKey(Game::GameGrid* world, int key) {
         switch (key) {
         case KEY_W:
             y++;
@@ -52,7 +52,7 @@ struct CubePlacement {
             break;
         }
 	}
-    void drawGhostCube(Game::GameWorld* world) {
+    void drawGhostCube(Game::GameGrid* world) {
         Color color = Game::default_cell_colors[cubeType];
         //Color color = RED;
         color.a = 128;

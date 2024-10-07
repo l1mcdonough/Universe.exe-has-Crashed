@@ -14,7 +14,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(raylib)
 
 file(GLOB_RECURSE SOURCES "source/*.cpp")
-add_executable(MoldAdventures ${SOURCES} )
+file(GLOB_RECURSE INCLUDES "include/game/*.hpp")
+add_executable(MoldAdventures ${SOURCES}  "include/external/rlights.h" ${INCLUDES})
 target_link_libraries(MoldAdventures PRIVATE raylib)
 target_include_directories(MoldAdventures PRIVATE include)
 file(COPY "resources/" DESTINATION "resources/")

@@ -51,7 +51,7 @@ namespace Game
 		bool WrapAround = false, 
 		float CubeSideLength = 1.f
 	>
-	struct World
+	struct Grid
 	{
 		struct Mutable
 		{
@@ -69,7 +69,7 @@ namespace Game
 		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
 		static const auto cell_null = Cell_T{ 0 };
 		ColorsType colors;
-		World(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
+		Grid(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
 		{
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 					cell_out = 0;
@@ -79,11 +79,11 @@ namespace Game
 					cell_out = 0;
 				});
 		}
-		World(const World& other) = delete;
-		World(World&& other) = default;
-		~World() { delete grid_read; delete grid_write;  }
-		World& operator=(const World& other) = delete;
-		World& operator=(World&& other) = default;
+		Grid(const Grid& other) = delete;
+		Grid(Grid&& other) = default;
+		~Grid() { delete grid_read; delete grid_write;  }
+		Grid& operator=(const Grid& other) = delete;
+		Grid& operator=(Grid&& other) = default;
 		constexpr inline const Index3 dimensions() const {
 			return Index3{ Nx, Ny, Nz };
 		}
@@ -105,12 +105,25 @@ namespace Game
 					return DIM >= (N##DIM - 1) ? (N##DIM - 1) : DIM + 1; \
 			}
 
+
+		#define GAME_WORLD_HPP_HEADER_OFFSET_DIM(DIM) \
+			auto offset_##DIM ( int DIM ) const \
+			{ \
+				if constexpr (WrapAround == true) \
+					return DIM <= 0 ? N##DIM + DIM : DIM % N##DIM; \
+				else \
+					return DIM <= 0 ? 0 : (( DIM >= N##DIM ) ? DIM - 1 : DIM ); \
+			}
+
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(x)
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(y)
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(z)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(x)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(y)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(z)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(x)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(y)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(z)
 
 		inline size_t from_index3(const Index3 index3) const {
 			return from_index3(index3.x, index3.y, index3.z);
@@ -142,7 +155,7 @@ namespace Game
 		}
 
 
-		Cell_T neighbor_sum(size_t x, size_t y, size_t z) const
+		Cell_T neighbor_sum(size_t x, size_t y, size_t z, Cell_T count_value) const
 		{
 			Cell_T total = Cell_T{ 0 };
 			for (size_t ix = minus_x(x); ix <= add_x(x); ++ix)
@@ -150,7 +163,9 @@ namespace Game
 				for (size_t iy = minus_y(y); iy <= add_y(y); ++iy)
 				{
 					for (size_t iz = minus_z(z); iz <= add_z(z); ++iz)
-						total += read_at(ix, iy, iz);
+					{
+						total += static_cast<Cell_T>(read_at(ix, iy, iz) == count_value)* count_value;
+					}
 				}
 			}
 			return total;
@@ -235,7 +250,6 @@ namespace Game
 					);
 				}
 			});
-
 		}
 
 		template<size_t ValueCount>
@@ -265,15 +279,37 @@ namespace Game
 		{
 			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
-					auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
-					const size_t sum = neighbor_sum(x, y, z) - cell_in;
-					if (sum >= results.size()) cell_out = 0;
-					else cell_out = results[sum];
+					if (cell_in < 2)
+					{
+						auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
+						const size_t sum = neighbor_sum(x, y, z, 1) - static_cast<uint8_t>(cell_in == 1);
+						if (sum >= results.size()) cell_out = 0;
+						else cell_out = results[sum];
+					}
 				}
 			);
 		}
 
-		void langton(size_t steps)
+		void fractal()
+		{
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					if (cell_in > 1)
+					{
+						int8_t x_offset = (1 - static_cast<int8_t>((x + cell_in) % 3));
+						int8_t y_offset = (1 - static_cast<int8_t>((y + cell_in) % 3));
+						int8_t z_offset = (1 - static_cast<int8_t>((z + cell_in) % 3));
+						size_t out_x = offset_x(static_cast<int>(x) + x_offset);
+						size_t out_y = offset_y(static_cast<int>(y) + y_offset);
+						size_t out_z = offset_z(static_cast<int>(z) + z_offset);
+						mutable_at(out_x, out_y, out_z) = read_at(out_x, out_y, out_z) + 1;
+						cell_out -= 1;
+					}
+				}
+			);
+		}
+
+		void langton()
 		{
 			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
@@ -289,40 +325,55 @@ namespace Game
 						LANGTON_LEFT, 
 						LANGTON_RIGHT
 					};
+					auto ant_at = [&](Index3 position, uint8_t direction)
+					{
+						Cell_T value = ((mutable_at(position) & is_langton_trail) | direction | is_langton_ant);
+						mutable_at(position) = value;
+						commit();
+						mutable_at(position) = value;
+						commit();
+					};
 					if ((cell_in & is_langton_ant) == is_langton_ant)
 					{
-						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
-						if ((cell_in & is_langton_trail) == is_langton_trail)
-						{
-							const auto clockwise_position = std::array<Index3, 4>{
-								Index3{ x, add_y(y), z },
-								Index3{ x, minus_y(y), z },
+						const auto position = std::array<Index3, 4>{
+								Index3{ minus_x(x), y, z },
 								Index3{ add_x(x), y, z },
-								Index3{ minus_x(x), y, z }
-							};
-							cell_out = clockwise[direction];
-							mutable_at(clockwise_position[direction]) = (read_at(clockwise_position[direction]) | is_langton_ant);
+								Index3{ x, add_y(y), z },
+								Index3{ x, minus_y(y), z }
+						};
+						const auto lateral_position = std::array<Index3, 4>{
+								Index3{ x, y, add_z(z) },
+								Index3{ x, y, minus_z(z) },
+								Index3{ x, y, add_z(z) },
+								Index3{ x, y, minus_z(z) }
+						};
+						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
+						if ((cell_in & is_langton_trail) == 1)
+						{
+							cell_out = 1;
+							uint8_t next_direction = clockwise[direction];
+							//uint8_t next_direction = ((x % 2 + y % 3 + z % 4) % 2) == 1 ? clockwise[direction] : counter_clockwise[direction]; // pseudo-random
+							ant_at(lateral_position[next_direction >> 3], next_direction);
+						}
+						else if ((cell_in & is_langton_trail) == is_langton_trail)
+						{
+							cell_out = 0;
+							uint8_t next_direction = clockwise[direction];
+							ant_at(position[next_direction >> 3], next_direction);
 						}
 						else
 						{
-							const auto counter_clockwise_position = std::array<Index3, 4>{
-								Index3{ x, minus_y(y), z },
-								Index3{ x, add_y(y), z },
-								Index3{ minus_x(x), y, z },
-								Index3{ add_x(x), y, z }
-							};
-							cell_out = counter_clockwise[direction] | is_langton_trail;
-							mutable_at(counter_clockwise_position[direction]) = (read_at(counter_clockwise_position[direction]) | is_langton_ant);
+							cell_out = is_langton_trail;
+							uint8_t next_direction = counter_clockwise[direction];
+							ant_at(position[next_direction >> 3], next_direction);
 						}
 					}
-					else
+					else if((cell_in & is_langton_trail) == is_langton_trail)
 						cell_out = cell_in;
 				}
 			);
 		}
 
-		Index3 langton_position;
-		Direction langton_direction;
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
@@ -330,6 +381,6 @@ namespace Game
 	
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 48, 48, 10>;
+	using GameGrid = Grid<DefaultCellType, 48, 48, 16>;
 }
-#endif GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
+#endif // GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
