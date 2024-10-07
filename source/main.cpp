@@ -4,8 +4,11 @@ using namespace Game::RayExtend;
 
 int main(int argc, char** args)
 {
-    auto game = Game::Game0<Game::GameGrid>(Game::default_cell_colors);
-    game.play();
+    Game::Application application;
+
+    application.run();
+    //auto game = Game::Game0<Game::GameGrid>(Game::default_cell_colors);
+    //game.play();
     //SetExitKey(KEY_SEMICOLON);
     //Game::GameGrid fractal_grid(Game::default_cell_colors);
     //{

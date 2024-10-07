@@ -80,6 +80,9 @@ namespace Game
             default:
                 break;
             }
+            x %= world->dimensions().x;
+            y %= world->dimensions().y;
+            z %= world->dimensions().z;
         }
         void drawGhostCube(auto* world) {
             Color color = Game::default_cell_colors[cubeType];

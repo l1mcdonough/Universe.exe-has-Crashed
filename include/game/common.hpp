@@ -4,6 +4,9 @@
 #include <vector>
 #include <optional>
 #include <bitset>
+#include <algorithm>
+#include <tuple>
+#include <variant>
 #include <raylib.h>
 #include <rlgl.h>
 #include <raymath.h>

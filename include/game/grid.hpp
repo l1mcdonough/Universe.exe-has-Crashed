@@ -91,6 +91,10 @@ namespace Game
 	>
 	struct Grid
 	{
+		constexpr static const size_t XSize = Nx;
+		constexpr static const size_t YSize = Ny;
+		constexpr static const size_t ZSize = Nz;
+		constexpr static const Index3 grid_dimensions{ Nx, Ny, Nz };
 		struct Mutable
 		{
 			const size_t x;
