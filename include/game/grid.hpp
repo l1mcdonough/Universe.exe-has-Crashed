@@ -291,7 +291,8 @@ namespace Game
 						color = BROWN;
 					else
 						color = colors.at(cell);
-					color.a = grid_alpha;
+					if(grid_alpha != 255)
+						color.a = grid_alpha;
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
