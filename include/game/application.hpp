@@ -182,12 +182,14 @@ namespace Game
                 {
                     if (select_resolution != current_resolution)
                     {
-                        window = Window(
-                            screen_widths[select_resolution],
-                            screen_heights[select_resolution],
-                            title
-                        );
                         current_resolution = select_resolution;
+                        EndDrawing();
+                        SetWindowSize(
+                            screen_widths[select_resolution],
+                            screen_heights[select_resolution]
+                        );
+                        window.screen_width = screen_widths[select_resolution];
+                        window.screen_height = screen_heights[select_resolution];
                     }
                     if (select_grid_type != current_grid_type) {
                         current_grid_type = select_grid_type;
