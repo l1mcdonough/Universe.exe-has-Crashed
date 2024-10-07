@@ -5,7 +5,7 @@
 #define GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
 namespace Game
 {
-
+	using DefaultCellType = uint8_t;
 	enum class Direction {
 		Left, Right, Up, Down, Forward, Backward
 	};
@@ -13,6 +13,8 @@ namespace Game
 	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
 	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
 	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
+	constexpr const inline uint8_t t = (2 << 3);
+	
 	enum LangtonDirection
 	{
 		LANGTON_LEFT     = 0b00000000,
@@ -42,6 +44,41 @@ namespace Game
 		PURPLE,
 		ORANGE
 	};
+
+	inline DefaultCellType mod_cell(DefaultCellType from, DefaultCellType to)
+	{
+		if (to == 3 || (to & is_langton_trail) == is_langton_trail)
+		{
+			if ((from & is_langton_trail) == is_langton_trail)
+				return from & (~is_langton_trail);
+			else
+				return from | is_langton_trail;
+		}
+		else if (to == 4 || (to & is_langton_ant) == is_langton_ant)
+		{
+			if ((from & is_langton_ant) == is_langton_ant)
+				return from & (~is_langton_ant) & (~langton_direction_mask);
+			else
+				return from | is_langton_ant | static_cast<uint8_t>(GetRandomValue(0, 3) << 3);
+		}
+		else
+			return to;
+	}
+
+	inline std::string_view cell_type_name(DefaultCellType type)
+	{
+		if (type == 1)
+			return "Conway";
+		else if (type == 2)
+			return "Conway Blocker";
+		else if (type == 3 || (type & is_langton_trail) == is_langton_trail)
+			return "Ant Trail";
+		else if (type == 4 || (type & is_langton_ant) == is_langton_ant)
+			return "Ant";
+		else
+			return "Unknown";
+	}
+
 
 	template<
 		typename Cell_T, 
@@ -374,13 +411,28 @@ namespace Game
 			);
 		}
 
+		void draw_box_3d(Vector3 center) const
+		{
+			Vector3 minimum{
+				center.x - Nx / 2,
+				center.z - Nz / 2,
+				center.y - Ny / 2
+			};
+			Vector3 maximum{
+				center.x + Nx / 2,
+				center.z + Nz / 2,
+				center.y + Ny / 2
+			};
+			DrawBoundingBox(BoundingBox{ .min = minimum, .max = maximum }, VIOLET);
+		}
+
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
 	};
 	
 
-	using DefaultCellType = uint8_t;
+
 	using GameGrid = Grid<DefaultCellType, 48, 48, 16>;
 }
 #endif // GAME_WORLD_HPP_HEADER_INCLUDE_GUARD

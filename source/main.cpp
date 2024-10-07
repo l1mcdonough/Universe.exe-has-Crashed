@@ -13,6 +13,7 @@ void draw_gizmo(
     float arm_length = .01f,
     float sphere_radii_ratio = 1.f / 5.f
 );
+
 int main(int argc, char** args)
 {
     const int screen_width = 1280;
@@ -20,7 +21,7 @@ int main(int argc, char** args)
 
     InitWindow(screen_width, screen_height, "Game");
     SetTargetFPS(60);
-//
+    //SetExitKey(KEY_SEMICOLON);
     Camera camera = { 0 };
     camera.position = Vector3{ .1f, 200.0f, 0.f }; // Camera position
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
@@ -28,25 +29,9 @@ int main(int argc, char** args)
     camera.position = Vector3{ 0.1f, 20.0f, 10.f };
     camera.fovy = 90.0f; // Default
     camera.projection = CAMERA_PERSPECTIVE; // Default
-    CubePlacement cubePlacement;
     Game::GameGrid grid(Game::default_cell_colors);
     Game::GameGrid fractal_grid(Game::default_cell_colors);
-    for (size_t ii = 0; ii < 500; ++ii)
-    {
-        grid.mutable_at(
-            GetRandomValue(0, grid.dimensions().x - 1),
-            GetRandomValue(0, grid.dimensions().y - 1),
-            GetRandomValue(0, grid.dimensions().z - 1)
-        ) = 1;
-    }
-    for (size_t ii = 0; ii < 5; ++ii)
-    {
-        size_t x = GetRandomValue(0, grid.dimensions().x - 1);
-        size_t y = GetRandomValue(0, grid.dimensions().y - 1);
-        size_t z = GetRandomValue(0, grid.dimensions().z - 1);
-        uint8_t direction = GetRandomValue(0, 3) << 3;
-        grid.mutable_at(x, y, z) = (direction | Game::is_langton_ant);
-    }
+    CubePlacement cubePlacement(grid.dimensions());
     {
         size_t x = grid.dimensions().x / 2;
         size_t y = grid.dimensions().y / 2;
@@ -80,18 +65,21 @@ int main(int argc, char** args)
         orbital_camera(camera, camera_orbit_speed);
         Vector2 mouse_position = GetMousePosition();
         ++frame;
+        const auto grid3d_center = ::Vector3{ 0.f, 0.f, 0.f };
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
                     if(show_gizmo == true)
                         draw_gizmo(camera);
-                    grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                    grid.draw_3d(grid3d_center);
                     //fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
                     cubePlacement.processCubePlacement(&grid, key);
                     DrawGrid(256, 1.0f);
+                    grid.draw_box_3d(grid3d_center);
             EndMode3D();
             DrawFPS(10, 10);
             pause_display(pause_sim, screen_height);
+            cubePlacement.drawCellTypeName(screen_width, screen_height);
         EndDrawing();
         if (key == KEY_P)
             pause_sim = !pause_sim;
