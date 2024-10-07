@@ -309,8 +309,21 @@ namespace Game
 								Index3{ x, add_y(y), z },
 								Index3{ x, minus_y(y), z }
 						};
+						const auto lateral_position = std::array<Index3, 4>{
+								Index3{ x, y, add_z(z) },
+								Index3{ x, y, minus_z(z) },
+								Index3{ x, y, add_z(z) },
+								Index3{ x, y, minus_z(z) }
+						};
 						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
-						if ((cell_in & is_langton_trail) == is_langton_trail)
+						if ((cell_in & is_langton_trail) == 1)
+						{
+							cell_out = 1;
+							uint8_t next_direction = clockwise[direction];
+							//uint8_t next_direction = ((x % 2 + y % 3 + z % 4) % 2) == 1 ? clockwise[direction] : counter_clockwise[direction]; // pseudo-random
+							ant_at(lateral_position[next_direction >> 3], next_direction);
+						}
+						else if ((cell_in & is_langton_trail) == is_langton_trail)
 						{
 							cell_out = 0;
 							uint8_t next_direction = clockwise[direction];
@@ -323,8 +336,8 @@ namespace Game
 							ant_at(position[next_direction >> 3], next_direction);
 						}
 					}
-					//else
-						//cell_out = cell_in;
+					else if((cell_in & is_langton_trail) == is_langton_trail)
+						cell_out = cell_in;
 				}
 			);
 		}

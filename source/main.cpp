@@ -20,13 +20,11 @@ int main(int argc, char** args)
     SetTargetFPS(60);
 //
     Camera camera = { 0 };
-    camera.position = Vector3{ 0.1f, 20.0f, 10.f }; // Camera position
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
     camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
-    camera.fovy = 90.0f; // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
+    camera.position = Vector3{ 0.1f, 20.0f, 10.f }; // Camera position
     Game::GameWorld world(Game::default_cell_colors);
-    for (size_t ii = 0; ii < 1000; ++ii)
+    for (size_t ii = 0; ii < 500; ++ii)
     {
         world.mutable_at(
             GetRandomValue(0, world.dimensions().x - 1),
@@ -38,10 +36,9 @@ int main(int argc, char** args)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
+        size_t z = GetRandomValue(0, world.dimensions().z - 1);
         uint8_t direction = GetRandomValue(0, 3) << 3;
-        std::cout << "Direction: " << (int) direction << "\n";
-        world.mutable_at(x, y, 0) = (direction | Game::is_langton_ant);
-        //std::cout << (((direction | Game::is_langton_ant) & Game::is_langton_ant ) == Game::is_langton_ant ) << "\n";
+        world.mutable_at(x, y, z) = (direction | Game::is_langton_ant);
     }
     world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
     size_t grid_update_period = 6;
@@ -50,9 +47,22 @@ int main(int argc, char** args)
     DisableCursor();
     bool pause_sim = true;
     bool show_gizmo = true;
+    bool camera_orthographic = false;
     world.commit();
     while (!WindowShouldClose())
     {
+        if (IsKeyReleased(KEY_O) == true)
+        {
+            camera_orthographic = !camera_orthographic;
+            if (camera_orthographic == true) {
+                camera.fovy = 180.0f;
+                camera.projection = CAMERA_ORTHOGRAPHIC;
+            }
+            else {
+                camera.fovy = 90.0f;
+                camera.projection = CAMERA_PERSPECTIVE;
+            }
+        }
         orbital_camera(camera, camera_orbit_speed);
         Vector2 mouse_position = GetMousePosition();
         ++frame;
@@ -71,6 +81,7 @@ int main(int argc, char** args)
             pause_sim = !pause_sim;
         if (IsKeyReleased(KEY_G) == true)
             show_gizmo = !show_gizmo;
+
         if (pause_sim == false)
         {
             if (frame % grid_update_period == 0)
