@@ -1,6 +1,6 @@
 #include <game/grid.hpp>
 #include <game/ray_extend.hpp>
-
+// a comment
 using namespace Game::RayExtend;
 
 void orbital_camera(Camera& camera, const float camera_orbit_speed);
