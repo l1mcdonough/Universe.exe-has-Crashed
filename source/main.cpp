@@ -26,21 +26,15 @@ int main(int argc, char** args)
     camera.fovy = 90.0f; // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
     Game::GameWorld world(Game::default_cell_colors);
-    //for (size_t ii = 0; ii < 20; ++ii)
-    //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
-    //for (size_t ii = 0; ii < 2000; ++ii)
-        //world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
-    //for (size_t ii = 0; ii < 2000; ++ii)
-    //{
-    //    size_t x = GetRandomValue(0, world.dimensions().x - 1);
-    //    size_t y = GetRandomValue(0, world.dimensions().y - 1);
-    //    //uint8_t direction = GetRandomValue(0, 3) << 3;
-    //    world.mutable_at(x, y, 0) = Game::is_langton_trail;
-    //    //std::cout << (direction | Game::is_langton_trail) << "\n";
-    //    //std::cout << (((direction | Game::is_langton_trail) & Game::is_langton_trail) == Game::is_langton_trail) << "\n";
-    //    ////std::cout << (direction & Game::is_langton_ant) << "\n";
-    //}
-    for (size_t ii = 0; ii < 20; ++ii)
+    for (size_t ii = 0; ii < 1000; ++ii)
+    {
+        world.mutable_at(
+            GetRandomValue(0, world.dimensions().x - 1),
+            GetRandomValue(0, world.dimensions().y - 1),
+            GetRandomValue(0, world.dimensions().z - 1)
+        ) = 1;
+    }
+    for (size_t ii = 0; ii < 5; ++ii)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
@@ -61,17 +55,6 @@ int main(int argc, char** args)
     {
         orbital_camera(camera, camera_orbit_speed);
         Vector2 mouse_position = GetMousePosition();
-//        std::cout << camera.up.x << ", "
-//            << camera.up.y << ", "
-//            << camera.up.z << "\n";
-//            //// Check if the left mouse button is clicked
-//        //if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-//        //    // Calculate the column and row of the rectangle clicked
-//        //    int clickedColumn = mousePosition.x / rectSize;
-//        //    int clickedRow = mousePosition.y / rectSize;
-//        //    grid[clickedRow][clickedColumn] = 255;
-//        //}
-
         ++frame;
         BeginDrawing();
             ClearBackground(RAYWHITE);
@@ -93,10 +76,9 @@ int main(int argc, char** args)
             if (frame % grid_update_period == 0)
             {
                 frame = 0;
-                //world.conway();
+                world.conway();
+                //world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 1});
                 world.langton(1);
-
-                //std::cout << world.langton_position << "\n";
                 world.commit();
             }
         }

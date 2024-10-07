@@ -142,7 +142,7 @@ namespace Game
 		}
 
 
-		Cell_T neighbor_sum(size_t x, size_t y, size_t z) const
+		Cell_T neighbor_sum(size_t x, size_t y, size_t z, Cell_T count_value) const
 		{
 			Cell_T total = Cell_T{ 0 };
 			for (size_t ix = minus_x(x); ix <= add_x(x); ++ix)
@@ -150,7 +150,9 @@ namespace Game
 				for (size_t iy = minus_y(y); iy <= add_y(y); ++iy)
 				{
 					for (size_t iz = minus_z(z); iz <= add_z(z); ++iz)
-						total += read_at(ix, iy, iz);
+					{
+						total += static_cast<Cell_T>(read_at(ix, iy, iz) == count_value)* count_value;
+					}
 				}
 			}
 			return total;
@@ -264,10 +266,13 @@ namespace Game
 		{
 			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
-					auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
-					const size_t sum = neighbor_sum(x, y, z) - cell_in;
-					if (sum >= results.size()) cell_out = 0;
-					else cell_out = results[sum];
+					if (cell_in < 2)
+					{
+						auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
+						const size_t sum = neighbor_sum(x, y, z, 1) - static_cast<uint8_t>(cell_in == 1);
+						if (sum >= results.size()) cell_out = 0;
+						else cell_out = results[sum];
+					}
 				}
 			);
 		}
@@ -318,8 +323,8 @@ namespace Game
 							ant_at(position[next_direction >> 3], next_direction);
 						}
 					}
-					else
-						cell_out = cell_in;
+					//else
+						//cell_out = cell_in;
 				}
 			);
 		}
@@ -331,6 +336,6 @@ namespace Game
 	
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 48, 48, 1>;
+	using GameWorld = World<DefaultCellType, 48, 48, 16>;
 }
 #endif // GAME_WORLD_HPP_HEADER_INCLUDE_GUARD
