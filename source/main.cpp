@@ -25,7 +25,9 @@ int main(int argc, char** args)
     camera.position = Vector3{ .1f, 200.0f, 0.f }; // Camera position
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
     camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
-    camera.position = Vector3{ 0.1f, 20.0f, 10.f }; // Camera position
+    camera.position = Vector3{ 0.1f, 20.0f, 10.f };
+    camera.fovy = 90.0f; // Default
+    camera.projection = CAMERA_PERSPECTIVE; // Default
     CubePlacement cubePlacement;
     Game::GameGrid grid(Game::default_cell_colors);
     Game::GameGrid fractal_grid(Game::default_cell_colors);
@@ -83,8 +85,8 @@ int main(int argc, char** args)
             BeginMode3D(camera);
                     if(show_gizmo == true)
                         draw_gizmo(camera);
-                    //grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
-                    fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                    grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                    //fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
                     cubePlacement.processCubePlacement(&grid, key);
                     DrawGrid(256, 1.0f);
             EndMode3D();
