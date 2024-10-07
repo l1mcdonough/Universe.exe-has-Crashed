@@ -13,7 +13,6 @@ namespace Game
 	constexpr const inline uint8_t is_langton_trail       = 0b00010000;
 	constexpr const inline uint8_t is_langton_ant         = 0b10000000;
 	constexpr const inline uint8_t langton_direction_mask = 0b01100000;
-	constexpr const inline uint8_t t = (2 << 3);
 	
 	enum LangtonDirection
 	{
@@ -36,11 +35,13 @@ namespace Game
 	}
 	using ColorsType = std::vector<::Color>;
 
+	inline const auto crystal_color = Color{ SKYBLUE.r, SKYBLUE.g, SKYBLUE.g, 200 };
+
 	inline const auto default_cell_colors = std::vector{
 		RAYWHITE, 
 		BLUE, 
 		RED, 
-		GREEN, 
+		crystal_color,
 		PURPLE, 
 		MAGENTA, 
 		DARKGREEN 
@@ -48,19 +49,19 @@ namespace Game
 
 	inline DefaultCellType mod_cell(DefaultCellType from, DefaultCellType to)
 	{
-		if (to == 3 || (to & is_langton_trail) == is_langton_trail)
+		if (to == 4 || (to & is_langton_trail) == is_langton_trail)
 		{
 			if ((from & is_langton_trail) == is_langton_trail)
 				return from & (~is_langton_trail);
 			else
 				return from | is_langton_trail;
 		}
-		else if (to == 4 || (to & is_langton_ant) == is_langton_ant)
+		else if (to == 5 || (to & is_langton_ant) == is_langton_ant)
 		{
 			if ((from & is_langton_ant) == is_langton_ant)
 				return from & (~is_langton_ant) & (~langton_direction_mask);
 			else
-				return from | is_langton_ant | static_cast<uint8_t>(GetRandomValue(0, 3) << 3);
+				return from | is_langton_ant | static_cast<uint8_t>(GetRandomValue(0, 3) << 5);
 		}
 		else
 			return to;
@@ -73,9 +74,11 @@ namespace Game
 			return "Conway";
 		else if (type == 2)
 			return "Conway Fire!";
-		else if (type == 3 || (type & is_langton_trail) == is_langton_trail)
+		else if (type == 3)
+			return "Conway Crystalizer";
+		else if (type == 4 || (type & is_langton_trail) == is_langton_trail)
 			return "Ant Trail";
-		else if (type == 4 || (type & is_langton_ant) == is_langton_ant)
+		else if (type == 5 || (type & is_langton_ant) == is_langton_ant)
 			return "Ant";
 		else
 			return "Unknown";
@@ -341,9 +344,9 @@ namespace Game
 				}
 			);
 		}
-		bool isGrowableOrange(size_t x, size_t y, size_t z) {
+		bool isGrowableConwayCrystal(size_t x, size_t y, size_t z) {
 			bool hasFood = hasConwayFood(x, y, z);
-			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 3) > 3;
 			return hasFood && hasRedNeighbor;
 		}
 
@@ -355,33 +358,21 @@ namespace Game
 			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
 			return hasFood && hasRedNeighbor;
 		}
-		bool isGrowableBuilder(size_t x, size_t y, size_t z) {
-			bool hasFood = hasConwayFood(x, y, z);
-			bool hasRedNeighbor = neighbor_sum(x, y, z, 3) > 2;
-			return hasFood && hasRedNeighbor;
-		}
 
-		void anti_conway_builder()
+		void conway_crystalizer()
 		{
 			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
 				{
-					if (cell_in != 2) {
-						if (isGrowableRed(x, y, z)) {
-							cell_out = 2;
+					if (cell_in != 3) {
+						if (isGrowableConwayCrystal(x, y, z)) {
+							cell_out = 3;
 						}
 					}
-					else {
-						if (hasConwayFood(x, y, z))
-							cell_out = cell_in;
-						else if (neighbor_sum(x, y, z, 2) / 2 <= 36)
-							cell_out = cell_in;
-						else
-							cell_out = 0;
-					}
+					else
+						cell_out = cell_in;
 				}
 			);
 		}
-
 
 		void anti_conway()
 		{
