@@ -13,7 +13,6 @@ namespace Game
 	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
 	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
 	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
-	constexpr const inline uint8_t is_langton_direction   = 0b01000000;
 	enum LangtonDirection
 	{
 		LANGTON_LEFT     = 0b00000000,
@@ -49,7 +48,7 @@ namespace Game
 		size_t Nx, 
 		size_t Ny, 
 		size_t Nz, 
-		bool WrapAround = true, 
+		bool WrapAround = false, 
 		float CubeSideLength = 1.f
 	>
 	struct World
@@ -219,7 +218,7 @@ namespace Game
 						color = PURPLE;
 					else if ((cell & is_langton_trail) == is_langton_trail)
 						color = GREEN;
-					else if ((cell & is_langton_direction) != 0 || ((cell & is_langton_direction) > 0))
+					else if ((cell & langton_direction_mask) != 0)
 						color = BROWN;
 					else
 						color = colors.at(cell);
@@ -291,11 +290,7 @@ namespace Game
 					};
 					auto ant_at = [&](Index3 position, uint8_t direction)
 					{
-						const uint8_t next_cell = mutable_at(position);
-						const uint8_t next_cell_direction = (next_cell & langton_direction_mask);
-						const uint8_t has_direction = ((mutable_at(position) & is_langton_direction) >> 6);
-						const uint8_t write_direction = (has_direction * direction) | ((1 - has_direction) * next_cell_direction);
-						const auto value = ((mutable_at(position) & is_langton_trail) | direction | is_langton_ant);
+						Cell_T value = ((mutable_at(position) & is_langton_trail) | direction | is_langton_ant);
 						mutable_at(position) = value;
 						commit();
 						mutable_at(position) = value;
@@ -304,21 +299,23 @@ namespace Game
 					if ((cell_in & is_langton_ant) == is_langton_ant)
 					{
 						const auto position = std::array<Index3, 4>{
-								Index3{ minus_x(x), y, z }, // LANGTON_LEFT >> 3
-								Index3{ add_x(x), y, z },   // LANGTON_RIGHT >> 3
-								Index3{ x, add_y(y), z },   // LANGTON_FORWARD >> 3
-								Index3{ x, minus_y(y), z }  // LANGTON_BACKWARD >> 3
+								Index3{ minus_x(x), y, z },
+								Index3{ add_x(x), y, z },
+								Index3{ x, add_y(y), z },
+								Index3{ x, minus_y(y), z }
 						};
 						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
 						if ((cell_in & is_langton_trail) == is_langton_trail)
 						{
-							cell_out = 0 | (direction << 3);
-							ant_at(position[direction], clockwise[direction]);
+							cell_out = 0;
+							uint8_t next_direction = clockwise[direction];
+							ant_at(position[next_direction >> 3], next_direction);
 						}
 						else
 						{
-							cell_out = is_langton_trail | (direction << 3);
-							ant_at(position[direction], counter_clockwise[direction]);
+							cell_out = is_langton_trail;
+							uint8_t next_direction = counter_clockwise[direction];
+							ant_at(position[next_direction >> 3], next_direction);
 						}
 					}
 					else

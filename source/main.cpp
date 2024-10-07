@@ -40,7 +40,7 @@ int main(int argc, char** args)
     //    //std::cout << (((direction | Game::is_langton_trail) & Game::is_langton_trail) == Game::is_langton_trail) << "\n";
     //    ////std::cout << (direction & Game::is_langton_ant) << "\n";
     //}
-    for (size_t ii = 0; ii < 1; ++ii)
+    for (size_t ii = 0; ii < 20; ++ii)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
