@@ -225,7 +225,7 @@ namespace Game
                 }
             }
         }
-        virtual void title_screen(int key)
+        virtual void title_screen(int key) override
         {
             const char* title = "Cellular Automota!";
             const size_t title_font_size = 72;

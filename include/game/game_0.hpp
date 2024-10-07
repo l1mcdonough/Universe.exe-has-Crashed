@@ -63,7 +63,8 @@ namespace Game
         bool show_gizmo;
         bool camera_orthographic;
         bool display_controls;
-
+        bool display_grid_box;
+        bool display_grid_lines;
 
         Camera camera;
         CubePlacement cubePlacement;
@@ -79,6 +80,8 @@ namespace Game
             bool show_gizmo_ = true,
             bool camera_orthographic_ = false,
             bool display_controls_ = true,
+            bool display_grid_box_ = true, 
+            bool display_grid_lines_ = true, 
             std::optional<Camera> camera_option = std::nullopt
         ) : grid(colors_),
             application(application_),
@@ -91,6 +94,8 @@ namespace Game
             show_gizmo(show_gizmo_),
             camera_orthographic(camera_orthographic_),
             display_controls(display_controls_),
+            display_grid_box(display_grid_box_), 
+            display_grid_lines(display_grid_lines_), 
             cubePlacement(grid.dimensions())
         {
             SetTargetFPS(60);
@@ -135,10 +140,12 @@ namespace Game
                 if (show_gizmo == true)
                     draw_gizmo(camera);
                 cubePlacement.processCubePlacement(&grid, key);
-                DrawGrid(grid_dimension_max, 1.0f);
+                if(display_grid_lines == true)
+                    DrawGrid(grid_dimension_max, 1.0f);
                 grid.draw_3d(grid3d_center);
                 //fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
-                grid.draw_box_3d(grid3d_center);
+                if(display_grid_box == true)
+                   grid.draw_box_3d(grid3d_center);
                 EndBlendMode();
                 EndMode3D();
                 DrawFPS(10, 10);
@@ -170,6 +177,12 @@ namespace Game
                 display_controls = !display_controls;
             if (key == KEY_ESCAPE)
                 application.open_settings();
+            if (key == KEY_L)
+                display_grid_lines = !display_grid_lines;
+            if (key == KEY_B)
+                display_grid_box = !display_grid_box;
+            if (key == KEY_G)
+                show_gizmo = !show_gizmo;
             orbital_camera(camera, camera_orbit_speed);
             return key;
         }

@@ -22,20 +22,24 @@ namespace Game
     inline void draw_controls(const size_t screen_width, const size_t screen_height)
     {
         static const auto controls = std::array{
-            "Toggle This Menu:         H",
-            "Move Cell Placer +X:      D",
-            "Move Cell Placer -X:      A",
-            "Move Cell Placer +Z:      W",
-            "Move Cell Placer -Z:      S",
-            "Move Cell Placer +Y:      E",
-            "Move Cell Placer -Y:      Q",
-            "Place Cell:           SPACE",
-            "Random Cells (Selected):  R",
-            "Pause/Unpause Simulation: P",
-            "Toggle Gizmo:             G",
-            "Zoom In/Out:    Mouse Wheel",
-            "Settings Menu:       ESCAPE",
-            "Quit to Desktop:          ;", 
+            "Toggle This Menu:           H",
+            "Move Cell Placer +X:        D",
+            "Move Cell Placer -X:        A",
+            "Move Cell Placer +Z:        W",
+            "Move Cell Placer -Z:        S",
+            "Move Cell Placer +Y:        E",
+            "Move Cell Placer -Y:        Q",
+            "Place Cell:             SPACE",
+            "Random Cells (Selected):    R",
+            "Reset Grid:                 0",
+            "Pause/Unpause Simulation:   P",
+            "Toggle Gizmo:               G",
+            "Toggle Orthographic Camera: O",
+            "Toggle Grid Lines:          L",
+            "Toggle Grid Box:            B",
+            "Zoom In/Out:      Mouse Wheel",
+            "Settings Menu:         ESCAPE",
+            "Quit to Desktop:            ;",
             "Rotate Camera: Hold Right\n    Click and Move Mouse"
         };
         static const size_t longest_string_index = find_longest_string(controls);
@@ -43,7 +47,7 @@ namespace Game
         const size_t text_width = MeasureText(controls[longest_string_index], font_size);
         const size_t y_start = 48;
         const size_t x_offset = text_width + 48;
-        const size_t line_count = 22;
+        const size_t line_count = controls.size() + 8;
         DrawRectangle(screen_width - x_offset - 16, y_start - 8, x_offset + 16, font_size * line_count+ 16, BLACK);
         DrawRectangle(screen_width - x_offset - 8, y_start, x_offset, font_size * line_count, RAYWHITE);
         const size_t text_x = screen_width - x_offset + 8;
