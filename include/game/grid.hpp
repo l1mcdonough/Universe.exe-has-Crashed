@@ -51,7 +51,7 @@ namespace Game
 		bool WrapAround = false, 
 		float CubeSideLength = 1.f
 	>
-	struct World
+	struct Grid
 	{
 		struct Mutable
 		{
@@ -69,7 +69,7 @@ namespace Game
 		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
 		static const auto cell_null = Cell_T{ 0 };
 		ColorsType colors;
-		World(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
+		Grid(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
 		{
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 					cell_out = 0;
@@ -79,11 +79,11 @@ namespace Game
 					cell_out = 0;
 				});
 		}
-		World(const World& other) = delete;
-		World(World&& other) = default;
-		~World() { delete grid_read; delete grid_write;  }
-		World& operator=(const World& other) = delete;
-		World& operator=(World&& other) = default;
+		Grid(const Grid& other) = delete;
+		Grid(Grid&& other) = default;
+		~Grid() { delete grid_read; delete grid_write;  }
+		Grid& operator=(const Grid& other) = delete;
+		Grid& operator=(Grid&& other) = default;
 		constexpr inline const Index3 dimensions() const {
 			return Index3{ Nx, Ny, Nz };
 		}
@@ -105,12 +105,25 @@ namespace Game
 					return DIM >= (N##DIM - 1) ? (N##DIM - 1) : DIM + 1; \
 			}
 
+
+		#define GAME_WORLD_HPP_HEADER_OFFSET_DIM(DIM) \
+			auto offset_##DIM ( int DIM ) const \
+			{ \
+				if constexpr (WrapAround == true) \
+					return DIM <= 0 ? N##DIM + DIM : DIM % N##DIM; \
+				else \
+					return DIM <= 0 ? 0 : (( DIM >= N##DIM ) ? DIM - 1 : DIM ); \
+			}
+
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(x)
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(y)
 		GAME_WORLD_HPP_HEADER_MINUS_DIM(z)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(x)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(y)
 		GAME_WORLD_HPP_HEADER_ADD_DIM(z)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(x)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(y)
+		GAME_WORLD_HPP_HEADER_OFFSET_DIM(z)
 
 		inline size_t from_index3(const Index3 index3) const {
 			return from_index3(index3.x, index3.y, index3.z);
@@ -277,7 +290,26 @@ namespace Game
 			);
 		}
 
-		void langton(size_t steps)
+		void fractal()
+		{
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					if (cell_in > 1)
+					{
+						int8_t x_offset = (1 - static_cast<int8_t>((x + cell_in) % 3));
+						int8_t y_offset = (1 - static_cast<int8_t>((y + cell_in) % 3));
+						int8_t z_offset = (1 - static_cast<int8_t>((z + cell_in) % 3));
+						size_t out_x = offset_x(static_cast<int>(x) + x_offset);
+						size_t out_y = offset_y(static_cast<int>(y) + y_offset);
+						size_t out_z = offset_z(static_cast<int>(z) + z_offset);
+						mutable_at(out_x, out_y, out_z) = read_at(out_x, out_y, out_z) + 1;
+						cell_out -= 1;
+					}
+				}
+			);
+		}
+
+		void langton()
 		{
 			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
@@ -349,6 +381,6 @@ namespace Game
 	
 
 	using DefaultCellType = uint8_t;
-	using GameWorld = World<DefaultCellType, 48, 48, 16>;
+	using GameGrid = Grid<DefaultCellType, 48, 48, 16>;
 }
 #endif // GAME_WORLD_HPP_HEADER_INCLUDE_GUARD

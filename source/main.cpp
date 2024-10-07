@@ -1,4 +1,4 @@
-#include <game/world.hpp>
+#include <game/grid.hpp>
 #include <game/ray_extend.hpp>
 
 using namespace Game::RayExtend;
@@ -23,24 +23,31 @@ int main(int argc, char** args)
     camera.target = Vector3{ 0.f, 0.f, 0.f }; // Camera looking at point
     camera.up = Vector3{ 0.0f, 1.0f, 0.0f }; // Camera up vector (rotation towards target)
     camera.position = Vector3{ 0.1f, 20.0f, 10.f }; // Camera position
-    Game::GameWorld world(Game::default_cell_colors);
+    Game::GameGrid grid(Game::default_cell_colors);
+    Game::GameGrid fractal_grid(Game::default_cell_colors);
     for (size_t ii = 0; ii < 500; ++ii)
     {
-        world.mutable_at(
-            GetRandomValue(0, world.dimensions().x - 1),
-            GetRandomValue(0, world.dimensions().y - 1),
-            GetRandomValue(0, world.dimensions().z - 1)
+        grid.mutable_at(
+            GetRandomValue(0, grid.dimensions().x - 1),
+            GetRandomValue(0, grid.dimensions().y - 1),
+            GetRandomValue(0, grid.dimensions().z - 1)
         ) = 1;
     }
     for (size_t ii = 0; ii < 5; ++ii)
     {
-        size_t x = GetRandomValue(0, world.dimensions().x - 1);
-        size_t y = GetRandomValue(0, world.dimensions().y - 1);
-        size_t z = GetRandomValue(0, world.dimensions().z - 1);
+        size_t x = GetRandomValue(0, grid.dimensions().x - 1);
+        size_t y = GetRandomValue(0, grid.dimensions().y - 1);
+        size_t z = GetRandomValue(0, grid.dimensions().z - 1);
         uint8_t direction = GetRandomValue(0, 3) << 3;
-        world.mutable_at(x, y, z) = (direction | Game::is_langton_ant);
+        grid.mutable_at(x, y, z) = (direction | Game::is_langton_ant);
     }
-    world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
+    {
+        size_t x = grid.dimensions().x / 2;
+        size_t y = grid.dimensions().y / 2;
+        size_t z = grid.dimensions().z / 2;
+        fractal_grid.mutable_at(x, y, z) = 8;
+    }
+    grid.copy_mutable_buffer(std::array<uint8_t, 2>{0, 3});
     size_t grid_update_period = 6;
     size_t frame = 0;
     const float camera_orbit_speed = .1f;
@@ -48,7 +55,7 @@ int main(int argc, char** args)
     bool pause_sim = true;
     bool show_gizmo = true;
     bool camera_orthographic = false;
-    world.commit();
+    grid.commit();
     while (!WindowShouldClose())
     {
         if (IsKeyReleased(KEY_O) == true)
@@ -71,8 +78,9 @@ int main(int argc, char** args)
             BeginMode3D(camera);
                     if(show_gizmo == true)
                         draw_gizmo(camera);
-                    world.draw_3d(::Vector3{0.f, 0.f, 0.f});
-                    DrawGrid(100, 1.0f);
+                    //grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                    fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                    DrawGrid(256, 1.0f);
             EndMode3D();
             DrawFPS(10, 10);
             pause_display(pause_sim, screen_height);
@@ -87,10 +95,11 @@ int main(int argc, char** args)
             if (frame % grid_update_period == 0)
             {
                 frame = 0;
-                world.conway();
-                //world.copy_mutable_buffer(std::array<uint8_t, 2>{0, 1});
-                world.langton(1);
-                world.commit();
+                fractal_grid.fractal();
+                fractal_grid.commit();
+                //grid.conway();
+                //grid.langton();
+                //grid.commit();
             }
         }
     }
