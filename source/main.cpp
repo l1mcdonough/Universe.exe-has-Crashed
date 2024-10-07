@@ -30,22 +30,22 @@ int main(int argc, char** args)
     //    world.mutable_at(world.dimensions().x / 2 + ii, world.dimensions().y / 2, 0) = 1;
     //for (size_t ii = 0; ii < 2000; ++ii)
         //world.mutable_at(GetRandomValue(0, world.dimensions().x - 1), GetRandomValue(0, world.dimensions().y - 1), 0) = 1;
-    for (size_t ii = 0; ii < 20; ++ii)
+    //for (size_t ii = 0; ii < 2000; ++ii)
+    //{
+    //    size_t x = GetRandomValue(0, world.dimensions().x - 1);
+    //    size_t y = GetRandomValue(0, world.dimensions().y - 1);
+    //    //uint8_t direction = GetRandomValue(0, 3) << 3;
+    //    world.mutable_at(x, y, 0) = Game::is_langton_trail;
+    //    //std::cout << (direction | Game::is_langton_trail) << "\n";
+    //    //std::cout << (((direction | Game::is_langton_trail) & Game::is_langton_trail) == Game::is_langton_trail) << "\n";
+    //    ////std::cout << (direction & Game::is_langton_ant) << "\n";
+    //}
+    for (size_t ii = 0; ii < 1; ++ii)
     {
         size_t x = GetRandomValue(0, world.dimensions().x - 1);
         size_t y = GetRandomValue(0, world.dimensions().y - 1);
         uint8_t direction = GetRandomValue(0, 3) << 3;
         std::cout << "Direction: " << (int) direction << "\n";
-        world.mutable_at(x, y, 0) = (direction | Game::is_langton_trail);
-        //std::cout << (direction | Game::is_langton_trail) << "\n";
-        //std::cout << (((direction | Game::is_langton_trail) & Game::is_langton_trail) == Game::is_langton_trail) << "\n";
-        ////std::cout << (direction & Game::is_langton_ant) << "\n";
-    }
-    for (size_t ii = 0; ii < 10; ++ii)
-    {
-        size_t x = GetRandomValue(0, world.dimensions().x - 1);
-        size_t y = GetRandomValue(0, world.dimensions().y - 1);
-        uint8_t direction = GetRandomValue(0, 3) << 3;
         world.mutable_at(x, y, 0) = (direction | Game::is_langton_ant);
         //std::cout << (((direction | Game::is_langton_ant) & Game::is_langton_ant ) == Game::is_langton_ant ) << "\n";
     }
