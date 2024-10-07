@@ -65,6 +65,7 @@ namespace Game
 			return to;
 	}
 
+
 	inline std::string_view cell_type_name(DefaultCellType type)
 	{
 		if (type == 1)
@@ -106,7 +107,7 @@ namespace Game
 		using Cube = std::array<Cell_T, Nx * Ny * Nz>;
 		static const auto cell_null = Cell_T{ 0 };
 		ColorsType colors;
-		Grid(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube)
+		Grid(ColorsType colors_) : colors(colors_), grid_read(new Cube), grid_write(new Cube), grid_alpha(255)
 		{
 			loop3d([](auto, auto, auto cell_out, size_t, size_t, size_t) {
 					cell_out = 0;
@@ -252,6 +253,14 @@ namespace Game
 			}
 		}
 
+		void set_grid_alpha(float grid_alpha_) {
+			grid_alpha = grid_alpha_;
+		}
+
+		float get_grid_alpha() const {
+			return grid_alpha;
+		}
+
 		void commit()
 		{
 			Cube* swap = grid_read;
@@ -274,6 +283,7 @@ namespace Game
 						color = BROWN;
 					else
 						color = colors.at(cell);
+					color.a = grid_alpha;
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -325,6 +335,22 @@ namespace Game
 					}
 				}
 			);
+		}
+
+		void reset()
+		{
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					cell_out = Cell_T{ 0 };
+				}
+			);
+			commit();
+			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
+				{
+					cell_out = Cell_T{ 0 };
+				}
+			);
+			commit();
 		}
 
 		void fractal()
@@ -429,6 +455,7 @@ namespace Game
 	protected:
 		Cube* grid_read;
 		Cube* grid_write;
+		float grid_alpha;
 	};
 	
 

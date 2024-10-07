@@ -1,5 +1,7 @@
 #include <game/common.hpp>
 
+#ifndef GAME_RAY_EXTEND_HPP_HEADER_INCLUDE_GUARD
+#define GAME_RAY_EXTEND_HPP_HEADER_INCLUDE_GUARD
 namespace Game::RayExtend
 {
 	inline ::Vector3 operator+(::Vector3 left, float right) {
@@ -8,6 +10,9 @@ namespace Game::RayExtend
 
 	inline ::Vector3 operator+(::Vector3 left, ::Vector3 right) {
 		return Vector3Add(left, right);
+	}
+	inline ::Vector3 operator-(::Vector3 left, ::Vector3 right) {
+		return Vector3Add(left, Vector3Negate(right));
 	}
 
 	inline ::Vector3 operator*(::Vector3 left, ::Vector3 right) {
@@ -26,3 +31,4 @@ namespace Game::RayExtend
 		return ::Vector3{ left.x / right, left.y / right, left.z / right };
 	}
 }
+#endif // GAME_RAY_EXTEND_HPP_HEADER_INCLUDE_GUARD
