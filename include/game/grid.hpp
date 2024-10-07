@@ -395,6 +395,8 @@ namespace Game
 					else {
 						if (hasConwayFood(x, y, z))
 							cell_out = cell_in;
+						else if ((neighbor_sum(x, y, z, 2) / 2) <= 3)
+							cell_out = 2;
 						else
 							cell_out = 0;
 					}
