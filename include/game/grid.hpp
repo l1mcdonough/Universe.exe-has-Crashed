@@ -14,6 +14,7 @@ namespace Game
 	constexpr const inline uint8_t is_langton_trail       = 0b00010000;
 	constexpr const inline uint8_t is_langton_ant         = 0b10000000;
 	constexpr const inline uint8_t langton_direction_mask = 0b01100000;
+	constexpr const inline uint8_t MOLD = 6;
 	
 	enum LangtonDirection
 	{
@@ -71,7 +72,10 @@ namespace Game
 
 	inline std::string_view cell_type_name(DefaultCellType type)
 	{
-		if (type == 1)
+		std::cout << type;
+		if (type == 0)
+			return "Delete";
+		else if (type == 1)
 			return "Conway";
 		else if (type == 2)
 			return "Conway Fire!";
@@ -81,8 +85,10 @@ namespace Game
 			return "Ant Trail";
 		else if (type == 5 || (type & is_langton_ant) == is_langton_ant)
 			return "Ant";
+		else if (type == 6)
+			return "Mold";
 		else
-			return "Unknown";
+			return "Uknown";
 	}
 
 
@@ -357,6 +363,7 @@ namespace Game
 		bool hasConwayFood(size_t x, size_t y, size_t z) {
 			return neighbor_sum(x, y, z, 1) > 2;
 		}
+
 		bool isGrowableRed(size_t x, size_t y, size_t z) {
 			bool hasFood = hasConwayFood(x, y, z);
 			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
@@ -378,6 +385,25 @@ namespace Game
 						cell_out = cell_in;
 				}
 			);
+		}
+
+		bool hasFoodMold(size_t x, size_t y, size_t z) {
+			return neighbor_sum(x, y, z, 1) > 2;
+		}
+		bool hasEnoughNeighborsMold(size_t x, size_t y, size_t z) {
+			return neighbor_sum(x, y, z, MOLD) > 12;
+		}
+
+		void grow_mold()
+		{
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z) {
+				if (hasEnoughNeighborsMold(x, y, z) && hasFoodMold(x, y, z)) {
+						cell_out = MOLD;
+					}
+					else if (!hasFoodMold(x, y, z) && cell_in == MOLD) {
+						cell_out = 0;
+					}
+				});
 		}
 
 		void anti_conway()

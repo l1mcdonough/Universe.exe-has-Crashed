@@ -201,6 +201,7 @@ namespace Game
                     grid.langton();
                     grid.anti_conway();
                     grid.conway_crystalizer();
+                    grid.grow_mold();
                     grid.commit();
                 }
             }
