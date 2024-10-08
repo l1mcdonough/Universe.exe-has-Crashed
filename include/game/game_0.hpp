@@ -77,7 +77,7 @@ namespace Game
             size_t grid_update_period_ = 6,
             size_t frame_ = 0,
             const float camera_orbit_speed_ = .1f,
-            bool show_gizmo_ = true,
+            bool show_gizmo_ = false,
             bool camera_orthographic_ = false,
             bool display_controls_ = true,
             bool display_grid_box_ = true, 
@@ -136,17 +136,17 @@ namespace Game
             else
             {
                 BeginMode3D(camera);
-                BeginBlendMode(BLEND_ALPHA);
-                if (show_gizmo == true)
-                    draw_gizmo(camera);
-                cubePlacement.processCubePlacement(&grid, key);
-                if(display_grid_lines == true)
-                    DrawGrid(grid_dimension_max, 1.0f);
-                grid.draw_3d(grid3d_center);
-                //fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
-                if(display_grid_box == true)
-                   grid.draw_box_3d(grid3d_center);
-                EndBlendMode();
+                    BeginBlendMode(BLEND_ALPHA);
+                        if (show_gizmo == true)
+                            draw_gizmo(camera);
+                        cubePlacement.processCubePlacement(&grid, key);
+                        if(display_grid_lines == true)
+                            DrawGrid(grid_dimension_max, 1.0f);
+                        grid.draw_3d(grid3d_center);
+                        //fractal_grid.draw_3d(::Vector3{0.f, 0.f, 0.f});
+                        if(display_grid_box == true)
+                           grid.draw_box_3d(grid3d_center);
+                    EndBlendMode();
                 EndMode3D();
                 DrawFPS(10, 10);
                 pause_display(pause_sim, application.window.screen_height);
@@ -199,6 +199,8 @@ namespace Game
                     //fractal_grid.commit();
                     grid.conway();
                     grid.langton();
+                    grid.anti_conway();
+                    grid.conway_crystalizer();
                     grid.commit();
                 }
             }

@@ -77,7 +77,7 @@ namespace Game
                 break;
             case KEY_R:
                 world->commit();
-                if (cubeType == 1)
+                if (cubeType < Game::is_langton_trail)
                     randomConway(world);
                 else if (cubeType == 3)
                     randomAntPaths(world);
@@ -200,7 +200,7 @@ namespace Game
                 const size_t x = GetRandomValue(0, grid->dimensions().x - 1);
                 const size_t y = GetRandomValue(0, grid->dimensions().y - 1);
                 const size_t z = GetRandomValue(0, grid->dimensions().z - 1);
-                grid->mutable_at(x, y, z) = 1;
+                grid->mutable_at(x, y, z) = cubeType;
             }
         }
         void randomAntPaths(auto* grid)

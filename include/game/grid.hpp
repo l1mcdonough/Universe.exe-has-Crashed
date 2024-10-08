@@ -9,18 +9,18 @@ namespace Game
 	enum class Direction {
 		Left, Right, Up, Down, Forward, Backward
 	};
-
-	constexpr const inline uint8_t is_langton_trail       = 0b00000011;
-	constexpr const inline uint8_t is_langton_ant         = 0b00100000;
-	constexpr const inline uint8_t langton_direction_mask = 0b00011000;
-	constexpr const inline uint8_t t = (2 << 3);
+	constexpr const inline uint8_t langton_bit_offset     = 5;
+	constexpr const inline uint8_t langton_mask           = 0b11110000;
+	constexpr const inline uint8_t is_langton_trail       = 0b00010000;
+	constexpr const inline uint8_t is_langton_ant         = 0b10000000;
+	constexpr const inline uint8_t langton_direction_mask = 0b01100000;
 	
 	enum LangtonDirection
 	{
 		LANGTON_LEFT     = 0b00000000,
-		LANGTON_RIGHT    = 0b00001000,
-		LANGTON_FORWARD  = 0b00010000,
-		LANGTON_BACKWARD = 0b00011000,
+		LANGTON_RIGHT    = 0b00100000,
+		LANGTON_FORWARD  = 0b01000000,
+		LANGTON_BACKWARD = 0b01100000,
 	};
 
 	using ColorType = ::Color;
@@ -36,30 +36,33 @@ namespace Game
 	}
 	using ColorsType = std::vector<::Color>;
 
+	inline const auto crystal_color = Color{ SKYBLUE.r, SKYBLUE.g, SKYBLUE.g, 200 };
+
 	inline const auto default_cell_colors = std::vector{
-		RAYWHITE,
-		BLUE,
-		RED,
-		GREEN,
-		PURPLE,
-		ORANGE
+		RAYWHITE, 
+		BLUE, 
+		RED, 
+		crystal_color,
+		PURPLE, 
+		MAGENTA, 
+		DARKGREEN 
 	};
 
 	inline DefaultCellType mod_cell(DefaultCellType from, DefaultCellType to)
 	{
-		if (to == 3 || (to & is_langton_trail) == is_langton_trail)
+		if (to == 4 || (to & is_langton_trail) == is_langton_trail)
 		{
 			if ((from & is_langton_trail) == is_langton_trail)
 				return from & (~is_langton_trail);
 			else
 				return from | is_langton_trail;
 		}
-		else if (to == 4 || (to & is_langton_ant) == is_langton_ant)
+		else if (to == 5 || (to & is_langton_ant) == is_langton_ant)
 		{
 			if ((from & is_langton_ant) == is_langton_ant)
 				return from & (~is_langton_ant) & (~langton_direction_mask);
 			else
-				return from | is_langton_ant | static_cast<uint8_t>(GetRandomValue(0, 3) << 3);
+				return from | is_langton_ant | static_cast<uint8_t>(GetRandomValue(0, 3) << langton_bit_offset);
 		}
 		else
 			return to;
@@ -71,10 +74,12 @@ namespace Game
 		if (type == 1)
 			return "Conway";
 		else if (type == 2)
-			return "Conway Blocker";
-		else if (type == 3 || (type & is_langton_trail) == is_langton_trail)
+			return "Conway Fire!";
+		else if (type == 3)
+			return "Conway Crystalizer";
+		else if (type == 4 || (type & is_langton_trail) == is_langton_trail)
 			return "Ant Trail";
-		else if (type == 4 || (type & is_langton_ant) == is_langton_ant)
+		else if (type == 5 || (type & is_langton_ant) == is_langton_ant)
 			return "Ant";
 		else
 			return "Unknown";
@@ -86,7 +91,7 @@ namespace Game
 		size_t Nx, 
 		size_t Ny, 
 		size_t Nz, 
-		bool WrapAround = false, 
+		bool WrapAround = true, 
 		float CubeSideLength = 1.f
 	>
 	struct Grid
@@ -197,7 +202,7 @@ namespace Game
 		}
 
 
-		Cell_T neighbor_sum(size_t x, size_t y, size_t z, Cell_T count_value) const
+		Cell_T neighbor_sum(size_t x, size_t y, size_t z, Cell_T count_value, bool remove_langton = true) const
 		{
 			Cell_T total = Cell_T{ 0 };
 			for (size_t ix = minus_x(x); ix <= add_x(x); ++ix)
@@ -206,7 +211,7 @@ namespace Game
 				{
 					for (size_t iz = minus_z(z); iz <= add_z(z); ++iz)
 					{
-						total += static_cast<Cell_T>(read_at(ix, iy, iz) == count_value)* count_value;
+						total += static_cast<Cell_T>((read_at(ix, iy, iz) & (~langton_mask)) == count_value) * count_value;
 					}
 				}
 			}
@@ -287,7 +292,8 @@ namespace Game
 						color = BROWN;
 					else
 						color = colors.at(cell);
-					color.a = grid_alpha;
+					if(grid_alpha != 255)
+						color.a = grid_alpha;
 					DrawCube(
 						::Vector3{ 
 							static_cast<float>(x) - Nx / 2 + center.x, 
@@ -330,12 +336,68 @@ namespace Game
 		{
 			loop3d([this](auto, auto& cell_in, auto cell_out, size_t x, size_t y, size_t z)
 				{
-					if (cell_in < 2)
+					uint8_t cell_langton = cell_in & langton_mask;
+					uint8_t cell_non_langton = cell_in & (~langton_mask);
+					if (cell_langton < 2)
 					{
-						auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_in), 1, 0, 0, 0, 0, 0, 0 };
-						const size_t sum = neighbor_sum(x, y, z, 1) - static_cast<uint8_t>(cell_in == 1);
-						if (sum >= results.size()) cell_out = 0;
-						else cell_out = results[sum];
+						auto results = std::array<Cell_T, 10>{ 0, 0, static_cast<Cell_T>(cell_langton), 1, 0, 0, 0, 0, 0, 0 };
+						const size_t sum = neighbor_sum(x, y, z, 1) - static_cast<uint8_t>(cell_langton == 1);
+						if (sum >= results.size()) cell_out = (0 | cell_langton);
+						else cell_out = (results[sum] | cell_langton);
+					}
+				}
+			);
+		}
+		bool isGrowableConwayCrystal(size_t x, size_t y, size_t z) {
+			bool hasFood = hasConwayFood(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 3) > 3;
+			return hasFood && hasRedNeighbor;
+		}
+
+		bool hasConwayFood(size_t x, size_t y, size_t z) {
+			return neighbor_sum(x, y, z, 1) > 2;
+		}
+		bool isGrowableRed(size_t x, size_t y, size_t z) {
+			bool hasFood = hasConwayFood(x, y, z);
+			bool hasRedNeighbor = neighbor_sum(x, y, z, 2) > 2;
+			return hasFood && hasRedNeighbor;
+		}
+
+		void conway_crystalizer()
+		{
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+				{
+					uint8_t cell_langton = cell_in & langton_mask;
+					uint8_t cell_non_langton = cell_in & (~langton_mask);
+					if (cell_non_langton != 3) {
+						if (isGrowableConwayCrystal(x, y, z)) {
+							cell_out = 3 | cell_langton;
+						}
+					}
+					else
+						cell_out = cell_in;
+				}
+			);
+		}
+
+		void anti_conway()
+		{
+			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z)
+				{
+					uint8_t cell_langton = cell_in & langton_mask;
+					uint8_t cell_non_langton = cell_in & (~langton_mask);
+					if (cell_non_langton != 2) {
+						if (isGrowableRed(x, y, z)) {
+							cell_out = 2 | cell_langton;
+						}
+					}
+					else {
+						if (hasConwayFood(x, y, z))
+							cell_out = cell_in;
+						else if ((neighbor_sum(x, y, z, 2) / 2) <= 3)
+							cell_out = 2 | cell_langton;
+						else
+							cell_out = 0 | cell_langton;
 					}
 				}
 			);
@@ -392,6 +454,8 @@ namespace Game
 						LANGTON_LEFT, 
 						LANGTON_RIGHT
 					};
+					constexpr const uint8_t t = (LANGTON_RIGHT >> langton_bit_offset);
+					t;
 					auto ant_at = [&](Index3 position, uint8_t direction)
 					{
 						Cell_T value = ((mutable_at(position) & is_langton_trail) | direction | is_langton_ant);
@@ -409,30 +473,34 @@ namespace Game
 								Index3{ x, minus_y(y), z }
 						};
 						const auto lateral_position = std::array<Index3, 4>{
-								Index3{ x, y, add_z(z) },
-								Index3{ x, y, minus_z(z) },
-								Index3{ x, y, add_z(z) },
-								Index3{ x, y, minus_z(z) }
+								Index3{ minus_x(x), y, add_z(z) },
+								Index3{ x, add_y(y), add_z(z)},
+								Index3{ x, minus_y(y), minus_z(z) },
+								Index3{ minus_x(x), y, minus_z(z) }
 						};
-						Cell_T direction = (cell_in & langton_direction_mask) >> 3;
-						if ((cell_in & is_langton_trail) == 1)
+						Cell_T direction = (cell_in & langton_direction_mask) >> langton_bit_offset;
+						const uint8_t non_langton_cell_type = (cell_in & (~langton_mask));
+						if (non_langton_cell_type > 0)
 						{
-							cell_out = 1;
-							uint8_t next_direction = clockwise[direction];
+							std::cout << "NON LANGTON CELL " << (int)non_langton_cell_type << "\n";
+							cell_out = non_langton_cell_type;
+							uint8_t next_direction = //(non_langton_cell_type % 2 == 0) 
+								clockwise[direction];
+								//: counter_clockwise[direction];
 							//uint8_t next_direction = ((x % 2 + y % 3 + z % 4) % 2) == 1 ? clockwise[direction] : counter_clockwise[direction]; // pseudo-random
-							ant_at(lateral_position[next_direction >> 3], next_direction);
+							ant_at(lateral_position[next_direction >> langton_bit_offset], next_direction);
 						}
 						else if ((cell_in & is_langton_trail) == is_langton_trail)
 						{
 							cell_out = 0;
 							uint8_t next_direction = clockwise[direction];
-							ant_at(position[next_direction >> 3], next_direction);
+							ant_at(position[next_direction >> langton_bit_offset], next_direction);
 						}
 						else
 						{
 							cell_out = is_langton_trail;
 							uint8_t next_direction = counter_clockwise[direction];
-							ant_at(position[next_direction >> 3], next_direction);
+							ant_at(position[next_direction >> langton_bit_offset], next_direction);
 						}
 					}
 					else if((cell_in & is_langton_trail) == is_langton_trail)
