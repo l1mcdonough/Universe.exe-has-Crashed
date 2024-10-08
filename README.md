@@ -1,6 +1,6 @@
 # LDJAM56
 Game for Lundum Dare 56!
-[Jame Page](https://ldjam.com/events/ludum-dare/56/cellular-automota)
+[Jam Page](https://ldjam.com/events/ludum-dare/56/cellular-automota)
 Cellular Automota in 3D (or 2.5D your choice)! Conway’s Game of Life, Langton’s Ant and and a few other things! Tiny Creatures was the theme maybe we can call ants and CA tiny creatures. Recommend native binary linked below for performance
 
 ![](resources/images/conway_fire_1.gif)
