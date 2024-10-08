@@ -9,9 +9,16 @@ namespace Game
     using namespace Game::RayExtend;
     struct CubePlacement
     {
+        float xf = 24;
+        float yf = 24;
+        float zf = 0;
+        const float MOVERATE = .15;
         unsigned int x = 24;
         unsigned int y = 24;
         unsigned int z = 0;
+        int timerFrames = 0;
+        int timerKey = 0;
+        int timerThreshold = 10;
         int cubeType = 1;
         float CubeSideLength = 1.f;
         CubePlacement(Game::Index3 grid_dimensions) :
@@ -32,24 +39,30 @@ namespace Game
                 break;
             case KEY_W:
                 y++;
+                yf = y;
                 break;
             case KEY_S:
                 y--;
+                yf = y;
                 break;
             case KEY_A:
                 x--;
+                xf = x;
                 break;
             case KEY_D:
                 x++;
+                xf = x;
                 break;
             case KEY_Q:
                 z--;
+                zf = z;
                 break;
             case KEY_ZERO:
                 world->reset();
                 break;
             case KEY_E:
                 z++;
+                zf = z;
                 break;
             case KEY_V:
                 cubeType++;
@@ -80,9 +93,70 @@ namespace Game
             default:
                 break;
             }
+            if (IsKeyDown(KEY_W) && timerThresholdMet(KEY_W)) {
+                
+                yf += MOVERATE;
+                y = (int) yf;
+            }
+            
+            if (IsKeyDown(KEY_S) && timerThresholdMet(KEY_S)) {
+                yf -= MOVERATE;
+                y = (int)yf;
+            }
+            
+            if (IsKeyDown(KEY_A) && timerThresholdMet(KEY_A)) {
+                xf -= MOVERATE;
+                x = (int)xf;
+            }
+
+            if (IsKeyDown(KEY_D) && timerThresholdMet(KEY_A)) {
+                xf += MOVERATE;
+                x = (int)xf;
+            }
+
+            if (IsKeyDown(KEY_Q) && timerThresholdMet(KEY_A)) {
+                zf -= MOVERATE;
+                z = (int)zf;
+            }
+
+            if (IsKeyDown(KEY_E) && timerThresholdMet(KEY_A)) {
+                zf += MOVERATE;
+                z = (int)zf;
+            }
+
+            if (IsKeyDown(KEY_SPACE)) {
+                world->commit();
+                world->mutable_at(x, y, z) = Game::mod_cell(world->read_at(x, y, z), cubeType);
+                world->commit();
+            }
+            if (!IsKeyDown(KEY_W) &&
+                !IsKeyDown(KEY_A) &&
+                !IsKeyDown(KEY_S) &&
+                !IsKeyDown(KEY_D) &&
+                !IsKeyDown(KEY_Q) &&
+                !IsKeyDown(KEY_E)){
+                timerFrames = 0;
+            }
+
             x %= world->dimensions().x;
             y %= world->dimensions().y;
             z %= world->dimensions().z;
+        }
+        bool timerThresholdMet(int key) {
+            if (key == timerKey) {
+                if (timerFrames >= timerThreshold) {
+                    return true;
+                }
+                else {
+                    timerFrames++;
+                    return false;
+                }
+            }
+            else {
+                timerKey = key;
+                timerFrames = 1;
+                return false;
+            }
         }
         void drawGhostCube(auto* world) {
             Color color = Game::default_cell_colors[cubeType];
