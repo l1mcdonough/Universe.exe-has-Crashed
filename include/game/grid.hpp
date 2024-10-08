@@ -397,7 +397,8 @@ namespace Game
 		void grow_mold()
 		{
 			loop3d([this](auto, auto& cell_in, Mutable cell_out, size_t x, size_t y, size_t z) {
-				if (hasEnoughNeighborsMold(x, y, z) && hasFoodMold(x, y, z)) {
+				uint8_t cell_non_langton = cell_in & (~langton_mask);
+				if (hasEnoughNeighborsMold(x, y, z) && hasFoodMold(x, y, z) && (cell_in != 5 || (cell_in & is_langton_ant) != is_langton_ant)) {
 						cell_out = MOLD;
 					}
 					else if (!hasFoodMold(x, y, z) && cell_in == MOLD) {
