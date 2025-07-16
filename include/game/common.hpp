@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <tuple>
 #include <variant>
+#define GRAPHICS_API_OPENGL_43
 #include <raylib.h>
 #include <rlgl.h>
 #include <raymath.h>

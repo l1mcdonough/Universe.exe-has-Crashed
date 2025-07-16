@@ -4,7 +4,7 @@
 #define GAME_RAY_EXTEND_HPP_HEADER_INCLUDE_GUARD
 namespace Game::RayExtend
 {
-	inline ::Vector3 operator+(::Vector3 left, float right) {
+	/*inline ::Vector3 operator+(::Vector3 left, float right) {
 		return Vector3AddValue(left, right);
 	}
 
@@ -29,6 +29,6 @@ namespace Game::RayExtend
 
 	inline ::Vector3 operator/(::Vector3 left, float right) {
 		return ::Vector3{ left.x / right, left.y / right, left.z / right };
-	}
+	}*/
 }
 #endif // GAME_RAY_EXTEND_HPP_HEADER_INCLUDE_GUARD
