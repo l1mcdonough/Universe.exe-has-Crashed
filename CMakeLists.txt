@@ -18,6 +18,7 @@ add_compile_definitions(BOOST_COMPUTE_HAVE_THREAD_LOCAL)
 add_compile_definitions(BOOST_COMPUTE_THREAD_SAFE)
 add_compile_definitions(BOOST_COMPUTE_USE_OFFLINE_CACHE)
 
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -26,18 +27,76 @@ FetchContent_Declare(
     GIT_TAG "master"
     GIT_PROGRESS TRUE
     CMAKE_ARGS 
-        -DGRAPHICS_API_OPENGL_43=ON
-        -DGRAPHICS_API_OPENGL_33=OFF
+        -DGRAPHICS_API_OPENGL_43
 )
+
+#FetchContent_Declare(
+#    OpenCL
+#    GIT_REPOSITORY "https://github.com/KhronosGroup/OpenCL-SDK.git"
+#    GIT_TAG "main"
+#    GIT_PROGRESS TRUE
+#    CMAKE_ARGS
+#        -DBUILD_TESTING=OFF
+#        -DBUILD_DOCS=OFF
+#        -DBUILD_EXAMPLES=OFF
+#        -DBUILD_TESTS=OFF
+#        -DOPENCL_SDK_BUILD_SAMPLES=OFF
+#        -DOPENCL_SDK_TEST_SAMPLES=OFF
+#)
+
+FetchContent_Declare(
+    OpenCLHeaders
+    GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers.git
+    GIT_TAG "main"
+    GIT_PROGRESS TRUE
+)
+
+
+set(boost_patch "${CMAKE_CURRENT_SOURCE_DIR}/patches/random_shuffle.hpp.patch")
+
 FetchContent_Declare(
     Boost
     GIT_REPOSITORY "https://github.com/boostorg/boost"
     GIT_TAG "master"
     GIT_PROGRESS TRUE
+    #PATCH_COMMAND git apply ${boost_patch}
+    UPDATE_DISCONNECTED 1
 )
 
 FetchContent_MakeAvailable(raylib)
+#FetchContent_MakeAvailable(OpenCL)
+FetchContent_MakeAvailable(OpenCLHeaders)
 FetchContent_MakeAvailable(Boost)
+
+#FetchContent_GetProperties(Boost)
+#if(NOT Boost_POPULATED)
+#  FetchContent_Populate(Boost)
+#endif()
+
+set(BOOST_COMPUTE_SOURCE_DIR "${Boost_SOURCE_DIR}/libs/compute")
+
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${boost_patch}
+  WORKING_DIRECTORY ${BOOST_COMPUTE_SOURCE_DIR}
+  RESULT_VARIABLE _patch_check_result
+)
+
+if(NOT _patch_check_result EQUAL 0)
+    message(STATUS "ATTENTION: Applying patch to boost-compute in ${BOOST_COMPUTE_SOURCE_DIR} using the file ${boost_patch} and ${GIT_EXECUTABLE} apply")
+    # Enter the source directory and apply the patch
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} apply --ignore-whitespace --whitespace=fix "${boost_patch}"
+      WORKING_DIRECTORY ${BOOST_COMPUTE_SOURCE_DIR}
+      RESULT_VARIABLE _patch_result
+    )
+    if(NOT _patch_result EQUAL 0)
+      message(FATAL_ERROR "Failed to apply Boost.Compute shuffle patch")
+    endif()
+else()
+    message(STATUS "ATTENTION: Patch already applied to to boost-compute in ${BOOST_COMPUTE_SOURCE_DIR} using the file ${boost_patch} and ${GIT_EXECUTABLE} apply")
+endif()
+
+include_directories("${OpenCLHeaders_SOURCE_DIR}")
 
 file(GLOB_RECURSE SOURCES "source/*.cpp")
 file(GLOB_RECURSE INCLUDES "include/game/*.hpp")

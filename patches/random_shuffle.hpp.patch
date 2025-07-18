@@ -1,0 +1,15 @@
+diff --git a/include/boost/compute/algorithm/random_shuffle.hpp b/include/boost/compute/algorithm/random_shuffle.hpp
+index 7405c173..d33d8483 100644
+--- a/include/boost/compute/algorithm/random_shuffle.hpp
++++ b/include/boost/compute/algorithm/random_shuffle.hpp
+@@ -58,7 +58,9 @@ inline void random_shuffle(Iterator first,
+     std::default_random_engine random_engine(nondeterministic_randomness());
+     std::shuffle(random_indices.begin(), random_indices.end(), random_engine);
+ #else
+-    std::random_shuffle(random_indices.begin(), random_indices.end());
++    static thread_local std::random_device randomness_device;
++    static thread_local std::mt19937 random_number_generator(randomness_device());
++    std::shuffle(random_indices.begin(), random_indices.end(), random_number_generator);
+ #endif
+
+     // copy random indices to the device
