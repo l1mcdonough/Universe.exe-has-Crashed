@@ -17,9 +17,18 @@ add_compile_definitions(BOOST_COMPUTE_DEBUG_KERNEL_COMPILATION)
 add_compile_definitions(BOOST_COMPUTE_HAVE_THREAD_LOCAL)
 add_compile_definitions(BOOST_COMPUTE_THREAD_SAFE)
 add_compile_definitions(BOOST_COMPUTE_USE_OFFLINE_CACHE)
+add_compile_definitions(BOOST_COMPUTE_USE_CPP11)
 
 
 include(FetchContent)
+
+FetchContent_Declare(
+	spdlog
+	GIT_REPOSITORY https://github.com/gabime/spdlog.git
+	GIT_TAG v1.15.0
+	GIT_PROGRESS TRUE
+)
+message(STATUS "Fetched Spdlog")
 
 FetchContent_Declare(
     raylib
@@ -29,20 +38,7 @@ FetchContent_Declare(
     CMAKE_ARGS 
         -DGRAPHICS_API_OPENGL_43
 )
-
-#FetchContent_Declare(
-#    OpenCL
-#    GIT_REPOSITORY "https://github.com/KhronosGroup/OpenCL-SDK.git"
-#    GIT_TAG "main"
-#    GIT_PROGRESS TRUE
-#    CMAKE_ARGS
-#        -DBUILD_TESTING=OFF
-#        -DBUILD_DOCS=OFF
-#        -DBUILD_EXAMPLES=OFF
-#        -DBUILD_TESTS=OFF
-#        -DOPENCL_SDK_BUILD_SAMPLES=OFF
-#        -DOPENCL_SDK_TEST_SAMPLES=OFF
-#)
+message(STATUS "Fetched Raylib")
 
 FetchContent_Declare(
     OpenCLHeaders
@@ -50,51 +46,49 @@ FetchContent_Declare(
     GIT_TAG "main"
     GIT_PROGRESS TRUE
 )
-
-
-set(boost_patch "${CMAKE_CURRENT_SOURCE_DIR}/patches/random_shuffle.hpp.patch")
+message(STATUS "Fetched OpenCLHeaders")
 
 FetchContent_Declare(
     Boost
     GIT_REPOSITORY "https://github.com/boostorg/boost"
     GIT_TAG "master"
     GIT_PROGRESS TRUE
-    #PATCH_COMMAND git apply ${boost_patch}
-    UPDATE_DISCONNECTED 1
 )
+message(STATUS "Fetched Boost (with Boost Compute")
 
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+message(STATUS "Fetched Nlohmann JSON")
+
+FetchContent_Declare(
+    cpplocate
+    GIT_REPOSITORY https://github.com/cginternals/cpplocate
+    GIT_TAG v2.3.0
+)
+message(STATUS "Fetched cpplocate")
+
+FetchContent_Declare(
+    catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2
+    GIT_TAG v3.8.1
+)
+message(STATUS "Fetched catch2")
+
+message(STATUS "Fetched catch2")
+FetchContent_MakeAvailable(spdlog)
+message(STATUS "spdlog made availible")
 FetchContent_MakeAvailable(raylib)
-#FetchContent_MakeAvailable(OpenCL)
+message(STATUS "Raylib made availible")
 FetchContent_MakeAvailable(OpenCLHeaders)
+message(STATUS "OpenCLHeaders made availible")
 FetchContent_MakeAvailable(Boost)
+message(STATUS "Boost made availible")
+FetchContent_MakeAvailable(json)
+message(STATUS "Nlohmann JSON made availible")
+FetchContent_MakeAvailable(cpplocate)
+message(STATUS "cpplocate made availible")
+FetchContent_MakeAvailable(catch2)
+message(STATUS "catch2 made availible")
 
-#FetchContent_GetProperties(Boost)
-#if(NOT Boost_POPULATED)
-#  FetchContent_Populate(Boost)
-#endif()
-
-set(BOOST_COMPUTE_SOURCE_DIR "${Boost_SOURCE_DIR}/libs/compute")
-
-execute_process(
-  COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${boost_patch}
-  WORKING_DIRECTORY ${BOOST_COMPUTE_SOURCE_DIR}
-  RESULT_VARIABLE _patch_check_result
-)
-
-if(NOT _patch_check_result EQUAL 0)
-    message(STATUS "ATTENTION: Applying patch to boost-compute in ${BOOST_COMPUTE_SOURCE_DIR} using the file ${boost_patch} and ${GIT_EXECUTABLE} apply")
-    # Enter the source directory and apply the patch
-    execute_process(
-      COMMAND ${GIT_EXECUTABLE} apply --ignore-whitespace --whitespace=fix "${boost_patch}"
-      WORKING_DIRECTORY ${BOOST_COMPUTE_SOURCE_DIR}
-      RESULT_VARIABLE _patch_result
-    )
-    if(NOT _patch_result EQUAL 0)
-      message(FATAL_ERROR "Failed to apply Boost.Compute shuffle patch")
-    endif()
-else()
-    message(STATUS "ATTENTION: Patch already applied to to boost-compute in ${BOOST_COMPUTE_SOURCE_DIR} using the file ${boost_patch} and ${GIT_EXECUTABLE} apply")
-endif()
 
 include_directories("${OpenCLHeaders_SOURCE_DIR}")
 

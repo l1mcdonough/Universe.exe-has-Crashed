@@ -1,4 +1,5 @@
 #include <game/application.hpp>
+#define BOOST_COMPUTE_USE_CPP11
 #include <boost/compute.hpp>
 
 using namespace Game::RayExtend;
