@@ -18,13 +18,26 @@ int main(int argc, char** args)
     compute::context cl_context(gpu);
     compute::command_queue queue(cl_context, gpu);
     const size_t sample_count = 10000000;
-    std::vector<float> host_vector(10000000);
+    std::vector<float> host_vector(sample_count);
+    std::vector<float> return_vector(sample_count);
     for(size_t ii = 0; ii < sample_count; ++ii)
-        host_vector[ii] = GetRandomValue(0, 100000);
-    compute::vector<float> device_vector(10000000, cl_context);
+        host_vector[ii] = GetRandomValue(0, 100);
+    compute::vector<float> device_vector(sample_count, cl_context);
     compute::copy(host_vector.begin(), host_vector.end(), device_vector.begin(), queue);
-    //compute::sort(device_vector.begin(), device_vector.end(), queue);
-    compute::copy(device_vector.begin(), device_vector.end(), host_vector.begin(), queue);
+    compute::transform(
+        device_vector.begin(),
+        device_vector.end(),
+        device_vector.begin(),
+        compute::sqrt<float>(),
+        queue
+    );
+    compute::copy(device_vector.begin(), device_vector.end(), return_vector.begin(), queue);
+    for(size_t ii = 0; ii < 10; ++ii)
+        std::cout << host_vector[ii] << " ";
+    std::cout << "\n";
+    for(size_t ii = 0; ii < 10; ++ii)
+        std::cout << return_vector[ii] << " ";
+    std::cout << "\n";
     // </compute>
 
     Game::Application application;
