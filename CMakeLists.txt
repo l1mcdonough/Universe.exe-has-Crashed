@@ -11,8 +11,6 @@ if (EMSCRIPTEN)
 endif ()
 
 
-#set(RAYLIB_GRAPHICS_API "OpenGL 4.3" CACHE STRING "Graphics API for raylib")
-#set(GRAPHICS_API_OPENGL_43 ON)
 add_compile_definitions(BOOST_COMPUTE_DEBUG_KERNEL_COMPILATION)
 add_compile_definitions(BOOST_COMPUTE_HAVE_THREAD_LOCAL)
 add_compile_definitions(BOOST_COMPUTE_THREAD_SAFE)
@@ -35,8 +33,6 @@ FetchContent_Declare(
     GIT_REPOSITORY "https://github.com/raysan5/raylib.git"
     GIT_TAG "master"
     GIT_PROGRESS TRUE
-    CMAKE_ARGS 
-        -DGRAPHICS_API_OPENGL_43
 )
 message(STATUS "Fetched Raylib")
 
@@ -47,6 +43,14 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 message(STATUS "Fetched OpenCLHeaders")
+
+FetchContent_Declare(
+    OpenCLICDLoader 
+    GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+    GIT_TAG "main"
+    GIT_PROGRESS TRUE
+)
+message(STATUS "Fetched OpenCLICDLoader")
 
 FetchContent_Declare(
     Boost
@@ -80,6 +84,8 @@ FetchContent_MakeAvailable(raylib)
 message(STATUS "Raylib made availible")
 FetchContent_MakeAvailable(OpenCLHeaders)
 message(STATUS "OpenCLHeaders made availible")
+FetchContent_MakeAvailable(OpenCLICDLoader)
+message(STATUS "OpenCLICDLoader made availible")
 FetchContent_MakeAvailable(Boost)
 message(STATUS "Boost made availible")
 FetchContent_MakeAvailable(json)
@@ -95,6 +101,6 @@ include_directories("${OpenCLHeaders_SOURCE_DIR}")
 file(GLOB_RECURSE SOURCES "source/*.cpp")
 file(GLOB_RECURSE INCLUDES "include/game/*.hpp")
 add_executable(${PROJECT_NAME} ${SOURCES}  "include/external/rlights.h" ${INCLUDES})
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib boost_compute)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib Boost::compute OpenCL)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 #file(COPY "resources/" DESTINATION "resources/")
