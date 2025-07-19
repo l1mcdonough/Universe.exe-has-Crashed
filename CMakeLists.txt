@@ -98,9 +98,18 @@ message(STATUS "catch2 made availible")
 
 include_directories("${OpenCLHeaders_SOURCE_DIR}")
 
-file(GLOB_RECURSE SOURCES "source/*.cpp")
 file(GLOB_RECURSE INCLUDES "include/game/*.hpp")
-add_executable(${PROJECT_NAME} ${SOURCES}  "include/external/rlights.h" ${INCLUDES})
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib Boost::compute OpenCL)
-target_include_directories(${PROJECT_NAME} PRIVATE include)
-#file(COPY "resources/" DESTINATION "resources/")
+file(GLOB_RECURSE LUNDUM_DEMO_SOURCES "source/lundum_demo/*.cpp")
+add_executable(LundumDemo ${LUNDUM_DEMO_SOURCES}  "include/external/rlights.h" ${INCLUDES})
+target_link_libraries(LundumDemo PRIVATE raylib Boost::compute OpenCL)
+target_include_directories(LundumDemo PRIVATE include)
+
+file(GLOB_RECURSE TFB_SCRATCHPAD_SOURCE "source/scratchpads/tfb/current.cpp") # TFB for The Floating Brain (Username)
+add_executable(TFBScratchpad ${TFB_SCRATCHPAD_SOURCE}  "include/external/rlights.h" ${INCLUDES})
+target_link_libraries(TFBScratchpad PRIVATE raylib Boost::compute OpenCL)
+target_include_directories(TFBScratchpad PRIVATE include)
+
+file(GLOB_RECURSE L1M_SCRATCHPAD_SOURCE "source/scratchpads/l1m/current.cpp") # L1M for l1mcdonough (Username)
+add_executable(L1MScratchpad ${L1M_SCRATCHPAD_SOURCE}  "include/external/rlights.h" ${INCLUDES})
+target_link_libraries(L1MScratchpad PRIVATE raylib Boost::compute OpenCL)
+target_include_directories(L1MScratchpad PRIVATE include)
