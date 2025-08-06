@@ -47,10 +47,10 @@ const char* conway3d_kernel_src = BOOST_COMPUTE_STRINGIZE_SOURCE(
     }
 
     char state = current[index];
-    if (state == 1 && (count == 5 || count == 6)) {
+    if (state == 1 && (count == 2 || count == 3)) {
         next[index] = 1;
     }
-    else if (state == 0 && count == 5) {
+    else if (state == 0 && count == 3) {
         next[index] = 1;
     }
     else {
@@ -60,7 +60,7 @@ const char* conway3d_kernel_src = BOOST_COMPUTE_STRINGIZE_SOURCE(
 );
 
 int main() {
-    const size_t width = 32, height = 32, depth = 32;
+    const size_t width = 100, height = 100, depth = 100;
     const size_t grid_size = width * height * depth;
     std::vector<char> host_grid(grid_size, 0);
     std::vector<Vector3> positions;
@@ -74,6 +74,7 @@ int main() {
     compute::device device = compute::system::default_device();
     compute::context context(device);
     compute::command_queue queue(context, device);
+    std::cout << "Using OpenCL device: " << device.name() << std::endl;
 
     compute::vector<char> d_current(host_grid.begin(), host_grid.end(), queue);
     compute::vector<char> d_next(grid_size, context);
@@ -90,7 +91,7 @@ int main() {
 
     InitWindow(800, 600, "Conway 3D - Raylib Instanced + OpenCL");
     Camera3D camera = { 0 };
-    camera.position = { 64.0f, 64.0f, -100.0f };
+    camera.position = { 0.0f, 0.0f, 0.0f };
     camera.target = { 16.0f, 16.0f, 16.0f };
     camera.up = { 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
@@ -106,7 +107,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         UpdateCamera(&camera, CAMERA_FREE);
-        std::cout << camera.position.x << " " << camera.position.y << " " << camera.position.z << "\n";
+        //std::cout << camera.position.x << " " << camera.position.y << " " << camera.position.z << "\n";
 
         if (IsKeyPressed(KEY_SPACE)) paused = !paused;
 
