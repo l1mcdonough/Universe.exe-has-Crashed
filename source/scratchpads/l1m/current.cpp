@@ -16,6 +16,8 @@
 #include "raylib.h"
 #include "rlgl.h"
 #include "raymath.h"
+#define RLIGHTS_IMPLEMENTATION
+#include <external/rlights.h>
 
 namespace compute = boost::compute;
 
@@ -63,7 +65,7 @@ int main() {
     const size_t width = 100, height = 100, depth = 100;
     const size_t grid_size = width * height * depth;
     std::vector<char> host_grid(grid_size, 0);
-    std::vector<Vector3> positions;
+    std::vector<Matrix> transforms;
 
     host_grid[(1 * width * height) + (1 * width) + 2] = 1;
     host_grid[(2 * width * height) + (2 * width) + 3] = 1;
@@ -109,9 +111,38 @@ int main() {
     const std::string lighting_fs_path = (Game::shader_path() / "lighting.fs").string();
     Shader shader = LoadShader(lighting_instanced_vs_path.c_str(), lighting_fs_path.c_str());
 
+
+        // Get shader locations
+    shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(shader, "mvp");
+    shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
+
+    // Set shader value: ambient light level
+    int ambientLoc = GetShaderLocation(shader, "ambient");
+    float ambientLight[4] = {0.2f, 0.2f, 0.2f, 1.0f};
+    SetShaderValue(shader, ambientLoc, ambientLight, SHADER_UNIFORM_VEC4);
+
+    // Create one light
+    CreateLight(LIGHT_DIRECTIONAL, Vector3{ 50.0f, 50.0f, 0.0f }, Vector3Zero(), WHITE, shader);
+
+    // NOTE: We are assigning the intancing shader to material.shader
+    // to be used on mesh drawing with DrawMeshInstanced()
+    Material matInstances = LoadMaterialDefault();
+    matInstances.shader = shader;
+    matInstances.maps[MATERIAL_MAP_DIFFUSE].color = RED;
+
+    // Load default material (using raylib intenral default shader) for non-instanced mesh drawing
+    // WARNING: Default shader enables vertex color attribute BUT GenMeshCube() does not generate vertex colors, so,
+    // when drawing the color attribute is disabled and a default color value is provided as input for thevertex attribute
+    Material matDefault = LoadMaterialDefault();
+    matDefault.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
+    Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
+
     while (!WindowShouldClose()) {
         UpdateCamera(&camera, CAMERA_FREE);
         //std::cout << camera.position.x << " " << camera.position.y << " " << camera.position.z << "\n";
+        // Update the light shader with the camera view position
+        float cameraPos[3] = { camera.position.x, camera.position.y, camera.position.z };
+        SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
 
         if (IsKeyPressed(KEY_SPACE)) paused = !paused;
 
@@ -145,31 +176,30 @@ int main() {
         }
 
         compute::copy(d_current.begin(), d_current.end(), host_grid.begin(), queue);
-        positions.clear();
+        transforms.clear();
         for (size_t z = 0; z < depth; ++z) {
             for (size_t y = 0; y < height; ++y) {
                 for (size_t x = 0; x < width; ++x) {
                     size_t idx = z * width * height + y * width + x;
                     if (host_grid[idx]) {
-                        positions.push_back({ (float)x, (float)y, (float)z });
+                        Matrix translation = MatrixTranslate(x, y, z);
+                        transforms.push_back(translation);
                     }
                 }
             }
         }
 
         BeginDrawing();
-        ClearBackground(BLACK);
+            ClearBackground(BLACK);
 
-        BeginMode3D(camera);
-        for (auto& pos : positions) {
-            DrawModel(cubeModel, pos, 0.9f, WHITE);
-        }
-        Game::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
-        EndMode3D();
+            BeginMode3D(camera);
+                DrawMeshInstanced(cube, matInstances, transforms.data(), transforms.size());
+                Game::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
+            EndMode3D();
 
-        Game::camera_debug_display(camera);
-        DrawText(paused ? "\n\n\n[PAUSED] Press SPACE to resume" : "Press SPACE to pause", 10, 10, 20, LIGHTGRAY);
-        DrawFPS(10, 40);
+            Game::camera_debug_display(camera);
+            DrawText(paused ? "\n\n\n[PAUSED] Press SPACE to resume" : "Press SPACE to pause", 10, 10, 20, LIGHTGRAY);
+            DrawFPS(10, 40);
         EndDrawing();
     }
 
