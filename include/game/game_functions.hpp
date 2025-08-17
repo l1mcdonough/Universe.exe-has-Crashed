@@ -105,6 +105,44 @@ namespace Game
         DrawSphere(end_z, sphere_radii, RED);
     }
 
+    void camera_debug_display(Camera camera)
+    {
+        const std::string camera_position_string = cat(
+            "camera_potition(x: ", 
+            camera.position.x, 
+            ", y: ", 
+            camera.position.y, 
+            ", z: ", 
+            camera.position.z,
+            ")"
+        );
+        const Vector3 camera_forward = GetCameraForward(&camera);
+        const std::string camera_direction_string = cat(
+            "camera_direction(.x:", 
+            camera_forward.x, 
+            ", y: ", 
+            camera_forward.y, 
+            ", z: ", 
+            camera_forward.z,
+            ")"
+        );
+        static const auto status = std::array{
+            camera_position_string,
+            camera_direction_string, 
+            cat("fov-y: ", camera.fovy)
+        };
+        static const size_t longest_string_index = find_longest_string(status);
+        const int font_size = 12;
+        const size_t text_width = MeasureText(status[longest_string_index].c_str(), font_size);
+        const size_t x_offset = text_width + 48;
+        const size_t text_x = x_offset + 8;
+        const size_t y_start = 48;
+        const size_t line_count = status .size() + 8;
+        const size_t line_offset = 5;
+        for(size_t ii = 0; ii < status.size(); ++ii)
+            DrawText(status[ii].c_str(), text_x, y_start + font_size * (ii + line_offset), font_size, GREEN);
+    }
+
     inline void pause_display(bool pause_sim, size_t screen_height)
     {
         DrawText("Simulation: ", 10, screen_height - 20, 10, BLACK);

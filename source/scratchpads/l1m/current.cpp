@@ -9,38 +9,63 @@
 #endif
 #include <boost/compute.hpp>
 
-using namespace Game::RayExtend;
-namespace compute = boost::compute;
-int main(int argc, char** args)
-{
-    // <compute> Demonstrate that boost compute is working
-    compute::device gpu = compute::system::default_device();
-    compute::context cl_context(gpu);
-    compute::command_queue queue(cl_context, gpu);
-    const size_t sample_count = 10000000;
-    std::vector<float> host_vector(sample_count);
-    std::vector<float> return_vector(sample_count);
-    for(size_t ii = 0; ii < sample_count; ++ii)
-        host_vector[ii] = GetRandomValue(0, 100);
-    compute::vector<float> device_vector(sample_count, cl_context);
-    compute::copy(host_vector.begin(), host_vector.end(), device_vector.begin(), queue);
-    compute::transform(
-        device_vector.begin(),
-        device_vector.end(),
-        device_vector.begin(),
-        compute::sqrt<float>(),
-        queue
-    );
-    compute::copy(device_vector.begin(), device_vector.end(), return_vector.begin(), queue);
-    for(size_t ii = 0; ii < 10; ++ii)
-        std::cout << host_vector[ii] << " ";
-    std::cout << "\n";
-    for(size_t ii = 0; ii < 10; ++ii)
-        std::cout << return_vector[ii] << " ";
-    std::cout << "\n";
-    // </compute>
+// Conway3D_Raylib_Instanced.cpp
+// Optimized OpenCL 3D Conway's Game of Life with raylib instanced rendering
 
-    Game::Application application;
+#include <iostream>
+#include "raylib.h"
+#include "rlgl.h"
+#include "raymath.h"
+#define RLIGHTS_IMPLEMENTATION
+#include <external/rlights.h>
+
+namespace compute = boost::compute;
+
+const char* conway3d_kernel_src = BOOST_COMPUTE_STRINGIZE_SOURCE(
+    __kernel void conway3d_step(__global const char* current,
+        __global char* next,
+        const uint width,
+        const uint height,
+        const uint depth) {
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int z = get_global_id(2);
+    int index = z * width * height + y * width + x;
+
+    int count = 0;
+    for (int dz = -1; dz <= 1; dz++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dy == 0 && dz == 0) continue;
+                int nx = x + dx;
+                int ny = y + dy;
+                int nz = z + dz;
+                if (nx >= 0 && ny >= 0 && nz >= 0 && nx < width && ny < height && nz < depth) {
+                    int n_index = nz * width * height + ny * width + nx;
+                    count += current[n_index];
+                }
+            }
+        }
+    }
+
+    char state = current[index];
+    if (state == 1 && (count == 2 || count == 3)) {
+        next[index] = 1;
+    }
+    else if (state == 0 && count == 3) {
+        next[index] = 1;
+    }
+    else {
+        next[index] = 0;
+    }
+}
+);
+
+int main() {
+    const size_t width = 100, height = 100, depth = 100;
+    const size_t grid_size = width * height * depth;
+    std::vector<char> host_grid(grid_size, 0);
+    std::vector<Matrix> transforms;
 
     host_grid[(1 * width * height) + (1 * width) + 2] = 1;
     host_grid[(2 * width * height) + (2 * width) + 3] = 1;
