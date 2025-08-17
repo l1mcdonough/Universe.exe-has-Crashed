@@ -10,6 +10,7 @@
 #include <format>
 #include <string>
 #include <sstream>
+#include <filesystem>
 #ifdef GRAPHICS_API_OPENGL_33
 	#undef GRAPHICS_API_OPENGL_33
 #endif
@@ -47,6 +48,14 @@ namespace Game
 	inline auto cat(auto... xs) {
 		std::stringstream ss;
 		return cat_impl(ss, xs...);
+	}
+	const inline std::filesystem::path make_resource_path() {
+		return std::filesystem::path(RESOURCE_DIRECTORY).make_preferred();
+	}
+	const static thread_local std::filesystem::path resource_path = make_resource_path();
+	const inline std::filesystem::path shader_path(uint16_t glsl_version = 330) {
+		auto glsl_folder = cat("glsl", glsl_version);
+		return Game::resource_path / "shaders" / glsl_folder;
 	}
 }
 #endif // UNIVERSE_EXE_COMMON_HPP_HEADER_INCLUDE_GUARD 

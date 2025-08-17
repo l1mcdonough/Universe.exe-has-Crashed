@@ -105,6 +105,10 @@ int main() {
     bool paused = false;
     DisableCursor();
 
+    const std::string lighting_instanced_vs_path = (Game::shader_path() / "lighting_instancing.vs").string();
+    const std::string lighting_fs_path = (Game::shader_path() / "lighting.fs").string();
+    Shader shader = LoadShader(lighting_instanced_vs_path.c_str(), lighting_fs_path.c_str());
+
     while (!WindowShouldClose()) {
         UpdateCamera(&camera, CAMERA_FREE);
         //std::cout << camera.position.x << " " << camera.position.y << " " << camera.position.z << "\n";
