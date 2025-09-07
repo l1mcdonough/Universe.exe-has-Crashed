@@ -8,12 +8,15 @@ void initialize_host_grid(std::vector<char>& host_grid, size_t width, size_t hei
 int main()
 {
 
-    Engine::ConwayLayer conway;
-    initialize_host_grid(conway.host_grid, conway.width, conway.height);
     OpenCLContext cl;
+    Engine::ConwayLayer conway(cl);
+    initialize_host_grid(conway.host_grid, conway.width, conway.height);
 
 
-    compute::program program = compute::program::build_with_source(conway3d_kernel_src, context);
+    compute::program program = compute::program::build_with_source(
+        conway3d_kernel_src,
+        cl.context
+    );
     compute::kernel kernel(program, "conway3d_step");
     kernel.set_arg(0, conway.d_current);
     kernel.set_arg(1, conway.d_next);
@@ -96,7 +99,12 @@ int main()
                     break;
                 }
             }
-            compute::copy(conway.host_grid.begin(), conway.host_grid.end(), conway.d_current.begin(), queue);
+            compute::copy(
+                conway.host_grid.begin(), 
+                conway.host_grid.end(), 
+                conway.d_current.begin(), 
+                cl.queue
+            );
         }
 
         if (!paused) {
@@ -107,7 +115,12 @@ int main()
             kernel.set_arg(1, conway.d_next);
         }
 
-        compute::copy(conway.d_current.begin(), conway.d_current.end(), conway.host_grid.begin(), queue);
+        compute::copy(
+            conway.d_current.begin(), 
+            conway.d_current.end(), 
+            conway.host_grid.begin(), 
+            cl.queue
+        );
         conway.transforms.clear();
         for (size_t z = 0; z < conway.depth; ++z) {
             for (size_t y = 0; y < conway.height; ++y) {
@@ -125,7 +138,11 @@ int main()
             ClearBackground(BLACK);
 
             BeginMode3D(camera);
-                DrawMeshInstanced(cube, matInstances, conway.transforms.data(), transforms.size());
+                DrawMeshInstanced(
+                    cube, 
+                    matInstances, 
+                    conway.transforms.data(), conway.transforms.size()
+                );
                 Engine::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
             EndMode3D();
 

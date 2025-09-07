@@ -98,7 +98,7 @@ FetchContent_MakeAvailable(catch2)
 message(STATUS "catch2 made availible")
 
 
-include_directories("${OpenCLHeaders_SOURCE_DIR}" ${spdlog_SOURCE_DIR}/include)
+include_directories("${OpenCLHeaders_SOURCE_DIR}")# ${spdlog_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE INCLUDES "include/game/*.hpp")
 file(GLOB_RECURSE LUNDUM_DEMO_SOURCES "source/lundum_demo/*.cpp")

@@ -56,6 +56,7 @@ namespace Engine
         compute::vector<char> d_current;
         compute::vector<char> d_next;
         ConwayLayer(
+            OpenCLContext& cl, 
             const size_t width_ = 100,
             const size_t height_ = 100,
             const size_t depth_ = 100
