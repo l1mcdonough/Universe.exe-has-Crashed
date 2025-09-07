@@ -1,6 +1,7 @@
 #include <iostream>
 #ifndef UNIVERSE_EXE__ENGINE__COMMON_HPP_HEADER_INCLUDE_GUARD 
 #define UNIVERSE_EXE__ENGINE__COMMON_HPP_HEADER_INCLUDE_GUARD 
+#pragma execution_character_set("utf-8")
 #include <array>
 #include <map>
 #include <vector>
@@ -13,6 +14,7 @@
 #include <string>
 #include <sstream>
 #include <filesystem>
+//#include <spdlog/spdlog.h>
 #ifdef GRAPHICS_API_OPENGL_33
 	#undef GRAPHICS_API_OPENGL_33
 #endif

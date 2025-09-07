@@ -1,4 +1,4 @@
-#include <engine/common.hpp>
+#include <engine/cl_context.hpp>
 #ifndef  UNIVERSE_EXE__ENGINE__CONWAY_HPP_HEADER_INCLUDE_GUARD
 #define  UNIVERSE_EXE__ENGINE__CONWAY_HPP_HEADER_INCLUDE_GUARD
 namespace Engine
@@ -44,6 +44,27 @@ namespace Engine
         }
     }
     );
+
+    struct ConwayLayer
+    {
+        const size_t width;
+        const size_t height;
+        const size_t depth;
+        const size_t grid_size = width * height * depth;
+        std::vector<char> host_grid;
+        std::vector<Matrix> transforms;
+        compute::vector<char> d_current;
+        compute::vector<char> d_next;
+        ConwayLayer(
+            const size_t width_ = 100,
+            const size_t height_ = 100,
+            const size_t depth_ = 100
+        ) : width(width_), height(height_), depth(depth_), 
+            grid_size(width * height * depth), 
+            host_grid(grid_size, 0),
+            d_current(host_grid.begin(), host_grid.end(), cl.queue),
+            d_next(grid_size, cl.context) {}
+    };
 }
 #endif // UNIVERSE_EXE__ENGINE__CONWAY_HPP_HEADER_INCLUDE_GUARD
 

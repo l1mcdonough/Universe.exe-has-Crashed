@@ -1,38 +1,27 @@
-#include <engine/visual_debugging.hpp>
 #include <engine/conway.hpp>
+#include <engine/visual_debugging.hpp>
 using namespace Engine;
 namespace compute = boost::compute;
 
+void initialize_host_grid(std::vector<char>& host_grid, size_t width, size_t height);
+
 int main()
 {
-    const size_t width = 100, height = 100, depth = 100;
-    const size_t grid_size = width * height * depth;
-    std::vector<char> host_grid(grid_size, 0);
-    std::vector<Matrix> transforms;
 
-    host_grid[(1 * width * height) + (1 * width) + 2] = 1;
-    host_grid[(2 * width * height) + (2 * width) + 3] = 1;
-    host_grid[(3 * width * height) + (3 * width) + 1] = 1;
-    host_grid[(3 * width * height) + (3 * width) + 2] = 1;
-    host_grid[(3 * width * height) + (3 * width) + 3] = 1;
+    Engine::ConwayLayer conway;
+    initialize_host_grid(conway.host_grid, conway.width, conway.height);
+    OpenCLContext cl;
 
-    compute::device device = compute::system::default_device();
-    compute::context context(device);
-    compute::command_queue queue(context, device);
-    std::cout << "Using OpenCL device: " << device.name() << std::endl;
-
-    compute::vector<char> d_current(host_grid.begin(), host_grid.end(), queue);
-    compute::vector<char> d_next(grid_size, context);
 
     compute::program program = compute::program::build_with_source(conway3d_kernel_src, context);
     compute::kernel kernel(program, "conway3d_step");
-    kernel.set_arg(0, d_current);
-    kernel.set_arg(1, d_next);
-    kernel.set_arg(2, (cl_uint)width);
-    kernel.set_arg(3, (cl_uint)height);
-    kernel.set_arg(4, (cl_uint)depth);
+    kernel.set_arg(0, conway.d_current);
+    kernel.set_arg(1, conway.d_next);
+    kernel.set_arg(2, (cl_uint)conway.width);
+    kernel.set_arg(3, (cl_uint)conway.height);
+    kernel.set_arg(4, (cl_uint)conway.depth);
 
-    size_t global_size[3] = { width, height, depth };
+    size_t global_size[3] = { conway.width, conway.height, conway.depth };
 
     InitWindow(800, 600, "Conway 3D - Raylib Instanced + OpenCL");
     Camera3D camera = { 0 };
@@ -92,41 +81,41 @@ int main()
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mouse = GetMousePosition();
             Ray ray = GetMouseRay(mouse, camera);
-            for (int i = 0; i < width * height * depth; i++) {
-                if (host_grid[i]) continue;
-                int x = i % width;
-                int y = (i / width) % height;
-                int z = i / (width * height);
+            for (int i = 0; i < conway.grid_size; i++) {
+                if (conway.host_grid[i]) continue;
+                int x = i % conway.width;
+                int y = (i / conway.width) % conway.height;
+                int z = i / (conway.width * conway.height);
                 BoundingBox box = {
                     { (float)x - 0.5f, (float)y - 0.5f, (float)z - 0.5f },
                     { (float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f }
                 };
                 RayCollision collision = GetRayCollisionBox(ray, box);
                 if (collision.hit == true) {
-                    host_grid[i] = 1;
+                    conway.host_grid[i] = 1;
                     break;
                 }
             }
-            compute::copy(host_grid.begin(), host_grid.end(), d_current.begin(), queue);
+            compute::copy(conway.host_grid.begin(), conway.host_grid.end(), conway.d_current.begin(), queue);
         }
 
         if (!paused) {
-            queue.enqueue_nd_range_kernel(kernel, 3, nullptr, global_size, nullptr);
-            queue.finish();
-            std::swap(d_current, d_next);
-            kernel.set_arg(0, d_current);
-            kernel.set_arg(1, d_next);
+            cl.queue.enqueue_nd_range_kernel(kernel, 3, nullptr, global_size, nullptr);
+            cl.queue.finish();
+            std::swap(conway.d_current, conway.d_next);
+            kernel.set_arg(0, conway.d_current);
+            kernel.set_arg(1, conway.d_next);
         }
 
-        compute::copy(d_current.begin(), d_current.end(), host_grid.begin(), queue);
-        transforms.clear();
-        for (size_t z = 0; z < depth; ++z) {
-            for (size_t y = 0; y < height; ++y) {
-                for (size_t x = 0; x < width; ++x) {
-                    size_t idx = z * width * height + y * width + x;
-                    if (host_grid[idx]) {
+        compute::copy(conway.d_current.begin(), conway.d_current.end(), conway.host_grid.begin(), queue);
+        conway.transforms.clear();
+        for (size_t z = 0; z < conway.depth; ++z) {
+            for (size_t y = 0; y < conway.height; ++y) {
+                for (size_t x = 0; x < conway.width; ++x) {
+                    size_t idx = z * conway.width * conway.height + y * conway.width + x;
+                    if (conway.host_grid[idx]) {
                         Matrix translation = MatrixTranslate(x, y, z);
-                        transforms.push_back(translation);
+                        conway.transforms.push_back(translation);
                     }
                 }
             }
@@ -136,7 +125,7 @@ int main()
             ClearBackground(BLACK);
 
             BeginMode3D(camera);
-                DrawMeshInstanced(cube, matInstances, transforms.data(), transforms.size());
+                DrawMeshInstanced(cube, matInstances, conway.transforms.data(), transforms.size());
                 Engine::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
             EndMode3D();
 
@@ -150,3 +139,13 @@ int main()
     CloseWindow();
     return 0;
 }
+
+void initialize_host_grid(std::vector<char>& host_grid, size_t width, size_t height)
+{
+    host_grid[(1 * width * height) + (1 * width) + 2] = 1;
+    host_grid[(2 * width * height) + (2 * width) + 3] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 1] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 2] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 3] = 1;
+}
+
