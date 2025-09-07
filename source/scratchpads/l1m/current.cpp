@@ -18,11 +18,14 @@ int main()
         cl.context
     );
     compute::kernel kernel(program, "conway3d_step");
-    kernel.set_arg(0, conway.d_current);
-    kernel.set_arg(1, conway.d_next);
-    kernel.set_arg(2, (cl_uint)conway.width);
-    kernel.set_arg(3, (cl_uint)conway.height);
-    kernel.set_arg(4, (cl_uint)conway.depth);
+    set_kernel_args(
+        kernel, 
+        conway.d_current, 
+        conway.d_next, 
+        conway.width, 
+        conway.height,
+        conway.depth
+    );
 
     size_t global_size[3] = { conway.width, conway.height, conway.depth };
 
@@ -111,8 +114,7 @@ int main()
             cl.queue.enqueue_nd_range_kernel(kernel, 3, nullptr, global_size, nullptr);
             cl.queue.finish();
             std::swap(conway.d_current, conway.d_next);
-            kernel.set_arg(0, conway.d_current);
-            kernel.set_arg(1, conway.d_next);
+            set_kernel_args(kernel, conway.d_current, conway.d_next);
         }
 
         compute::copy(
