@@ -1,67 +1,10 @@
-#include <game/application.hpp>
-#include <vector>
-#include <algorithm>
-#ifndef BOOST_COMPUTE_USE_CPP11
-    #define BOOST_COMPUTE_USE_CPP11
-#endif
-#ifndef CL_TARGET_OPENCL_VERSION
-    #define CL_TARGET_OPENCL_VERSION 300
-#endif
-#include <boost/compute.hpp>
-
-// Conway3D_Raylib_Instanced.cpp
-// Optimized OpenCL 3D Conway's Game of Life with raylib instanced rendering
-
-#include <iostream>
-#include "raylib.h"
-#include "rlgl.h"
-#include "raymath.h"
-#define RLIGHTS_IMPLEMENTATION
-#include <external/rlights.h>
-
+#include <engine/visual_debugging.hpp>
+#include <engine/conway.hpp>
+using namespace Engine;
 namespace compute = boost::compute;
 
-const char* conway3d_kernel_src = BOOST_COMPUTE_STRINGIZE_SOURCE(
-    __kernel void conway3d_step(__global const char* current,
-        __global char* next,
-        const uint width,
-        const uint height,
-        const uint depth) {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-    int z = get_global_id(2);
-    int index = z * width * height + y * width + x;
-
-    int count = 0;
-    for (int dz = -1; dz <= 1; dz++) {
-        for (int dy = -1; dy <= 1; dy++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                if (dx == 0 && dy == 0 && dz == 0) continue;
-                int nx = x + dx;
-                int ny = y + dy;
-                int nz = z + dz;
-                if (nx >= 0 && ny >= 0 && nz >= 0 && nx < width && ny < height && nz < depth) {
-                    int n_index = nz * width * height + ny * width + nx;
-                    count += current[n_index];
-                }
-            }
-        }
-    }
-
-    char state = current[index];
-    if (state == 1 && (count == 2 || count == 3)) {
-        next[index] = 1;
-    }
-    else if (state == 0 && count == 3) {
-        next[index] = 1;
-    }
-    else {
-        next[index] = 0;
-    }
-}
-);
-
-int main() {
+int main()
+{
     const size_t width = 100, height = 100, depth = 100;
     const size_t grid_size = width * height * depth;
     std::vector<char> host_grid(grid_size, 0);
@@ -107,8 +50,8 @@ int main() {
     bool paused = false;
     DisableCursor();
 
-    const std::string lighting_instanced_vs_path = (Game::shader_path() / "lighting_instancing.vs").string();
-    const std::string lighting_fs_path = (Game::shader_path() / "lighting.fs").string();
+    const std::string lighting_instanced_vs_path = (Engine::shader_path() / "lighting_instancing.vs").string();
+    const std::string lighting_fs_path = (Engine::shader_path() / "lighting.fs").string();
     Shader shader = LoadShader(lighting_instanced_vs_path.c_str(), lighting_fs_path.c_str());
 
 
@@ -194,10 +137,10 @@ int main() {
 
             BeginMode3D(camera);
                 DrawMeshInstanced(cube, matInstances, transforms.data(), transforms.size());
-                Game::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
+                Engine::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
             EndMode3D();
 
-            Game::camera_debug_display(camera);
+            Engine::camera_debug_display(camera);
             DrawText(paused ? "\n\n\n[PAUSED] Press SPACE to resume" : "Press SPACE to pause", 10, 10, 20, LIGHTGRAY);
             DrawFPS(10, 40);
         EndDrawing();
