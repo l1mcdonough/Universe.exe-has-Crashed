@@ -47,19 +47,19 @@ namespace Engine
 
     struct ConwayLayer
     {
-        const size_t width;
-        const size_t height;
-        const size_t depth;
-        const size_t grid_size = width * height * depth;
+        const int width;
+        const int height;
+        const int depth;
+        const int grid_size = width * height * depth;
         std::vector<char> host_grid;
         std::vector<Matrix> transforms;
         compute::vector<char> d_current;
         compute::vector<char> d_next;
         ConwayLayer(
             OpenCLContext& cl, 
-            const size_t width_ = 100,
-            const size_t height_ = 100,
-            const size_t depth_ = 100
+            const int width_ = 100,
+            const int height_ = 100,
+            const int depth_ = 100
         ) : width(width_), height(height_), depth(depth_), 
             grid_size(width * height * depth), 
             host_grid(grid_size, 0),

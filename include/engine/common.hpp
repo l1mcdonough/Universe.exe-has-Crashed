@@ -14,6 +14,7 @@
 #include <string>
 #include <sstream>
 #include <filesystem>
+#include <utility>
 //#include <spdlog/spdlog.h>
 #ifdef GRAPHICS_API_OPENGL_33
 	#undef GRAPHICS_API_OPENGL_33
