@@ -1,57 +1,165 @@
-#include <game/application.hpp>
-#include <vector>
-#include <algorithm>
-#ifndef BOOST_COMPUTE_USE_CPP11
-    #define BOOST_COMPUTE_USE_CPP11
-#endif
-#ifndef CL_TARGET_OPENCL_VERSION
-    #define CL_TARGET_OPENCL_VERSION 300
-#endif
-#include <boost/compute.hpp>
-
-using namespace Game::RayExtend;
+#include <engine/conway.hpp>
+#include <engine/visual_debugging.hpp>
+using namespace Engine;
 namespace compute = boost::compute;
-int main(int argc, char** args)
+
+void initialize_host_grid(std::vector<char>& host_grid, size_t width, size_t height);
+
+int main()
 {
-    // <compute> Demonstrate that boost compute is working
-    compute::device gpu = compute::system::default_device();
-    compute::context cl_context(gpu);
-    compute::command_queue queue(cl_context, gpu);
-    const size_t sample_count = 10000000;
-    std::vector<float> host_vector(sample_count);
-    std::vector<float> return_vector(sample_count);
-    for(size_t ii = 0; ii < sample_count; ++ii)
-        host_vector[ii] = GetRandomValue(0, 100);
-    compute::vector<float> device_vector(sample_count, cl_context);
-    compute::copy(host_vector.begin(), host_vector.end(), device_vector.begin(), queue);
-    compute::transform(
-        device_vector.begin(),
-        device_vector.end(),
-        device_vector.begin(),
-        compute::sqrt<float>(),
-        queue
+
+    OpenCLContext cl;
+    Engine::ConwayLayer conway(cl);
+    initialize_host_grid(conway.host_grid, conway.width, conway.height);
+
+    compute::kernel kernel(conway.program, "conway3d_step");
+    set_kernel_args(
+        kernel,
+        conway.d_current,
+        conway.d_next,
+        conway.width,
+        conway.height,
+        conway.depth
     );
-    compute::copy(device_vector.begin(), device_vector.end(), return_vector.begin(), queue);
-    for(size_t ii = 0; ii < 10; ++ii)
-        std::cout << host_vector[ii] << " ";
-    std::cout << "\n";
-    for(size_t ii = 0; ii < 10; ++ii)
-        std::cout << return_vector[ii] << " ";
-    std::cout << "\n";
-    // </compute>
 
-    Game::Application application;
+    size_t global_size[3] = { conway.width, conway.height, conway.depth };
 
-    application.run();
-    //auto game = Game::Game0<Game::GameGrid>(Game::default_cell_colors);
-    //game.play();
-    //SetExitKey(KEY_SEMICOLON);
-    //Game::GameGrid fractal_grid(Game::default_cell_colors);
-    //{
-    //    size_t x = grid.dimensions().x / 2;
-    //    size_t y = grid.dimensions().y / 2;
-    //    size_t z = grid.dimensions().z / 2;
-    //    fractal_grid.mutable_at(x, y, z) = 8;
-    //}
+    InitWindow(800, 600, "Conway 3D - Raylib Instanced + OpenCL");
+    Camera3D camera = { 0 };
+    camera.position = { 0.0f, 0.0f, 0.0f };
+    camera.target = { 16.0f, 16.0f, 16.0f };
+    camera.up = { 0.0f, 1.0f, 0.0f };
+    camera.fovy = 45.0f;
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    SetTargetFPS(60);
+
+    Mesh cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+    Model cubeModel = LoadModelFromMesh(cubeMesh);
+
+    bool paused = false;
+    DisableCursor();
+
+    const std::string lighting_instanced_vs_path = (Engine::shader_path() / "lighting_instancing.vs").string();
+    const std::string lighting_fs_path = (Engine::shader_path() / "lighting.fs").string();
+    Shader shader = LoadShader(lighting_instanced_vs_path.c_str(), lighting_fs_path.c_str());
+
+
+    // Get shader locations
+    shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(shader, "mvp");
+    shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
+
+    // Set shader value: ambient light level
+    int ambientLoc = GetShaderLocation(shader, "ambient");
+    float ambientLight[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    SetShaderValue(shader, ambientLoc, ambientLight, SHADER_UNIFORM_VEC4);
+
+    // Create one light
+    CreateLight(LIGHT_DIRECTIONAL, Vector3{ 50.0f, 50.0f, 0.0f }, Vector3Zero(), WHITE, shader);
+
+    // NOTE: We are assigning the intancing shader to material.shader
+    // to be used on mesh drawing with DrawMeshInstanced()
+    Material matInstances = LoadMaterialDefault();
+    matInstances.shader = shader;
+    matInstances.maps[MATERIAL_MAP_DIFFUSE].color = RED;
+
+    // Load default material (using raylib intenral default shader) for non-instanced mesh drawing
+    // WARNING: Default shader enables vertex color attribute BUT GenMeshCube() does not generate vertex colors, so,
+    // when drawing the color attribute is disabled and a default color value is provided as input for thevertex attribute
+    Material matDefault = LoadMaterialDefault();
+    matDefault.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
+    Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
+
+    while (!WindowShouldClose()) {
+        UpdateCamera(&camera, CAMERA_FREE);
+        //std::cout << camera.position.x << " " << camera.position.y << " " << camera.position.z << "\n";
+        // Update the light shader with the camera view position
+        float cameraPos[3] = { camera.position.x, camera.position.y, camera.position.z };
+        SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
+
+        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mouse = GetMousePosition();
+            Ray ray = GetMouseRay(mouse, camera);
+            for (int i = 0; i < conway.grid_size; i++) {
+                if (conway.host_grid[i]) continue;
+                int x = i % conway.width;
+                int y = (i / conway.width) % conway.height;
+                int z = i / (conway.width * conway.height);
+                BoundingBox box = {
+                    { (float)x - 0.5f, (float)y - 0.5f, (float)z - 0.5f },
+                    { (float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f }
+                };
+                RayCollision collision = GetRayCollisionBox(ray, box);
+                if (collision.hit == true) {
+                    conway.host_grid[i] = 1;
+                    break;
+                }
+            }
+            compute::copy(
+                conway.host_grid.begin(),
+                conway.host_grid.end(),
+                conway.d_current.begin(),
+                cl.queue
+            );
+        }
+
+        if (!paused) {
+            cl.queue.enqueue_nd_range_kernel(kernel, 3, nullptr, global_size, nullptr);
+            cl.queue.finish();
+            std::swap(conway.d_current, conway.d_next);
+            set_kernel_args(kernel, conway.d_current, conway.d_next);
+        }
+
+        compute::copy(
+            conway.d_current.begin(),
+            conway.d_current.end(),
+            conway.host_grid.begin(),
+            cl.queue
+        );
+        conway.transforms.clear();
+        for (size_t z = 0; z < conway.depth; ++z) {
+            for (size_t y = 0; y < conway.height; ++y) {
+                for (size_t x = 0; x < conway.width; ++x) {
+                    size_t idx = z * conway.width * conway.height + y * conway.width + x;
+                    if (conway.host_grid[idx]) {
+                        Matrix translation = MatrixTranslate(x, y, z);
+                        conway.transforms.push_back(translation);
+                    }
+                }
+            }
+        }
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        BeginMode3D(camera);
+        DrawMeshInstanced(
+            cube,
+            matInstances,
+            conway.transforms.data(), conway.transforms.size()
+        );
+        Engine::draw_gizmo(camera, { 0.01f, 0.05f, 0.f });
+        EndMode3D();
+
+        Engine::camera_debug_display(camera);
+        DrawText(paused ? "\n\n\n[PAUSED] Press SPACE to resume" : "Press SPACE to pause", 10, 10, 20, LIGHTGRAY);
+        DrawFPS(10, 40);
+        EndDrawing();
+    }
+
+    UnloadModel(cubeModel);
+    CloseWindow();
     return 0;
 }
+
+void initialize_host_grid(std::vector<char>& host_grid, size_t width, size_t height)
+{
+    host_grid[(1 * width * height) + (1 * width) + 2] = 1;
+    host_grid[(2 * width * height) + (2 * width) + 3] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 1] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 2] = 1;
+    host_grid[(3 * width * height) + (3 * width) + 3] = 1;
+}
+
