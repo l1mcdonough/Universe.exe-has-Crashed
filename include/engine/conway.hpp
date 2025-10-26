@@ -158,6 +158,6 @@ namespace Engine
             compute::program program;
             std::vector<compute::kernel> kernel_steps;
     };
-}
+} //
 #endif // UNIVERSE_EXE__ENGINE__CONWAY_HPP_HEADER_INCLUDE_GUARD
 
