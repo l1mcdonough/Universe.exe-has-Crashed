@@ -56,12 +56,31 @@ FetchContent_Declare(
 message(STATUS "Fetched OpenCLICDLoader")
 
 FetchContent_Declare(
-    Boost
-    GIT_REPOSITORY "https://github.com/boostorg/boost"
+    BoostCompute
+    GIT_REPOSITORY "https://github.com/boostorg/compute"
     GIT_TAG "master"
     GIT_PROGRESS TRUE
 )
-message(STATUS "Fetched Boost (with Boost Compute")
+set(BOOST_SUBMODULES "Any" "Array" "Algorithm" "Array" "Assert" "Atomic" "Align" "Bind" "Describe" "Chrono" "Conversion" 
+        "Concept_Check" "Container_Hash" "Config" "Core" "Compute" "Compat" "Container" "Detail" "Date_Time" 
+        "Exception" "Endian" "Function" "Functional" "Function_Types" "FileSystem" "Fusion" 
+        "Iterator" "Integer" "Intrusive" "IO" "Lexical_Cast" "MP11" "MPL" "Multi_Index" "Numeric_Conversion"
+        "Optional" "Pool" "Preprocessor" "PreDef" "Property_Tree" "Proto" "Phoenix" "Ratio" "Range" "Regex" 
+        "Scope" "Serialization" "Static_Assert" "Smart_Ptr" "System" "Spirit"
+        "Thread" "Throw_Exception" "Tuple" "TypeOf" "Type_Traits" "Type_Index" "Tokenizer"
+        "Unordered" "Utility" "UUID" "Variant" "Variant2" "WinAPI" "Move" )
+
+foreach(submod IN LISTS BOOST_SUBMODULES)
+    set(submodString "${submod}")
+    string(TOLOWER "${submodString}" submodLowerCaseString)
+    FetchContent_Declare(
+        Boost${submod}
+        GIT_REPOSITORY "https://github.com/boostorg/${submodLowerCaseString}"
+        GIT_TAG "master"
+        GIT_PROGRESS TRUE
+    )
+    message(STATUS "Fetched Boost ${submod}")
+endforeach()
 
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 message(STATUS "Fetched Nlohmann JSON")
@@ -81,37 +100,51 @@ FetchContent_Declare(
 message(STATUS "Fetched catch2")
 
 FetchContent_MakeAvailable(spdlog)
-message(STATUS "spdlog made availible")
+message(STATUS "spdlog made available")
 FetchContent_MakeAvailable(raylib)
-message(STATUS "Raylib made availible")
+message(STATUS "Raylib made available")
 FetchContent_MakeAvailable(OpenCLHeaders)
-message(STATUS "OpenCLHeaders made availible")
+message(STATUS "OpenCLHeaders made available")
 FetchContent_MakeAvailable(OpenCLICDLoader)
-message(STATUS "OpenCLICDLoader made availible")
-FetchContent_MakeAvailable(Boost)
-message(STATUS "Boost made availible")
+message(STATUS "OpenCLICDLoader made available")
+#FetchContent_MakeAvailable(BoostCompute)
+#message(STATUS "Boost Compute made available")
+foreach(submod IN LISTS BOOST_SUBMODULES)
+    set(submodString "${submod}")
+    string(TOLOWER "${submodString}" submodLowerCaseString)
+    FetchContent_MakeAvailable(Boost${submod})
+    message(STATUS "Boost ${submod} made available")
+endforeach()
 FetchContent_MakeAvailable(json)
-message(STATUS "Nlohmann JSON made availible")
+message(STATUS "Nlohmann JSON made available")
 FetchContent_MakeAvailable(cpplocate)
-message(STATUS "cpplocate made availible")
+message(STATUS "cpplocate made available")
 FetchContent_MakeAvailable(catch2)
-message(STATUS "catch2 made availible")
+message(STATUS "catch2 made available")
 
 
 include_directories("${OpenCLHeaders_SOURCE_DIR}")
 
+
+set(boost_libs "")
+foreach(submod IN LISTS BOOST_SUBMODULES)
+    set(submodString "${submod}")
+    string(TOLOWER "${submodString}" submodLowerCaseString)
+    list(APPEND boost_libs "Boost::${submodLowerCaseString}")
+endforeach()
+
 file(GLOB_RECURSE INCLUDES "include/game/*.hpp")
 file(GLOB_RECURSE LUNDUM_DEMO_SOURCES "source/lundum_demo/*.cpp")
 add_executable(LundumDemo ${LUNDUM_DEMO_SOURCES}  "include/external/rlights.h" ${INCLUDES})
-target_link_libraries(LundumDemo PRIVATE raylib Boost::compute OpenCL)
+target_link_libraries(LundumDemo PRIVATE raylib ${boost_libs} OpenCL)
 target_include_directories(LundumDemo PRIVATE include)
 
 file(GLOB_RECURSE TFB_SCRATCHPAD_SOURCE "source/scratchpads/tfb/current.cpp") # TFB for The Floating Brain (Username)
 add_executable(TFBScratchpad ${TFB_SCRATCHPAD_SOURCE}  "include/external/rlights.h" ${INCLUDES})
-target_link_libraries(TFBScratchpad PRIVATE raylib Boost::compute OpenCL)
+target_link_libraries(TFBScratchpad PRIVATE raylib ${boost_libs} OpenCL)
 target_include_directories(TFBScratchpad PRIVATE include)
 
 file(GLOB_RECURSE L1M_SCRATCHPAD_SOURCE "source/scratchpads/l1m/current.cpp") # L1M for l1mcdonough (Username)
 add_executable(L1MScratchpad ${L1M_SCRATCHPAD_SOURCE}  "include/external/rlights.h" ${INCLUDES})
-target_link_libraries(L1MScratchpad PRIVATE raylib Boost::compute OpenCL)
+target_link_libraries(L1MScratchpad PRIVATE raylib ${boost_libs} OpenCL)
 target_include_directories(L1MScratchpad PRIVATE include)
